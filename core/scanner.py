@@ -7,8 +7,20 @@ import subprocess
 import ssl
 import re
 import manuf
-
+import platform
+import sys
+import os
 DEFAULT_PORTS = [22, 80, 443, 445, 3389]
+IS_WINDOWS = platform.system().lower() == "windows"
+
+def get_manuf_path():
+        if getattr(sys, 'frozen', False):
+            # Running inside PyInstaller
+            base_path = sys._MEIPASS
+        else:
+            base_path = os.path.dirname(__file__)
+
+        return os.path.join(base_path, "manuf", "manuf")
 
 
 class NetworkScanner:
@@ -18,7 +30,12 @@ class NetworkScanner:
         self.timeout = timeout
         self.max_concurrent = max_concurrent
         self.resolve_dns = resolve_dns
-        self.oui_parser = manuf.MacParser()
+        manuf_file = get_manuf_path()
+        self.oui_parser = manuf.MacParser(manuf_file)
+
+
+
+           
 
     # -------------------------------------------------
     # ICMP
@@ -26,15 +43,23 @@ class NetworkScanner:
 
     async def icmp_ping(self, ip):
         try:
+            if IS_WINDOWS:
+                cmd = ["ping", "-n", "1", "-w", "500", str(ip)]
+            else:
+                cmd = ["ping", "-c", "1", "-W", "1", str(ip)]
+
             proc = await asyncio.create_subprocess_exec(
-                "ping", "-n", "1", "-w", "200", str(ip),
+                *cmd,
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL
             )
+
             await proc.communicate()
             return proc.returncode == 0
+
         except Exception:
             return False
+
 
     # -------------------------------------------------
     # ARP
@@ -45,30 +70,59 @@ class NetworkScanner:
         arp_data = {}
 
         try:
-            output = subprocess.check_output(["arp", "-a"], text=True)
-            for line in output.splitlines():
-                parts = line.split()
-                if len(parts) < 2:
-                    continue
+            if IS_WINDOWS:
+                output = subprocess.check_output(
+                    ["arp", "-a"],
+                    text=True,
+                    errors="ignore"
+                )
 
-                ip_str = parts[0]
-                mac = parts[1].lower().replace("-", ":")
+                for line in output.splitlines():
+                    parts = line.split()
+                    if len(parts) < 2:
+                        continue
 
-                try:
-                    ip_obj = ipaddress.ip_address(ip_str)
-                except ValueError:
-                    continue
+                    ip_str = parts[0]
+                    mac = parts[1].lower().replace("-", ":")
 
-                if ip_obj not in network:
-                    continue
+                    try:
+                        ip_obj = ipaddress.ip_address(ip_str)
+                    except:
+                        continue
 
-                if ip_obj == network.broadcast_address:
-                    continue
+                    if ip_obj in network:
+                        arp_data[ip_str] = mac
 
-                if mac == "ff:ff:ff:ff:ff:ff":
-                    continue
+            else:
+                # Linux / macOS
+                output = subprocess.check_output(
+                    ["ip", "neigh"],
+                    text=True,
+                    errors="ignore"
+                )
 
-                arp_data[ip_str] = mac
+                for line in output.splitlines():
+                    parts = line.split()
+
+                    if len(parts) < 5:
+                        continue
+
+                    ip_str = parts[0]
+                    mac = None
+
+                    if "lladdr" in parts:
+                        mac = parts[parts.index("lladdr") + 1]
+
+                    if not mac:
+                        continue
+
+                    try:
+                        ip_obj = ipaddress.ip_address(ip_str)
+                    except:
+                        continue
+
+                    if ip_obj in network:
+                        arp_data[ip_str] = mac.lower()
 
         except Exception:
             pass

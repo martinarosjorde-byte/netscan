@@ -192,9 +192,21 @@ pip install -r requirements.txt
 
 To compile standalone CLI executable:
 
+From project root:
+pip install pyinstaller
 ``` bash
-pyinstaller --onefile -m cli.cli
+pyinstaller --onefile --name netscan --collect-all manuf cli/cli.py
+
 ```
+
+## 🖥 Supported Platforms
+
+- Windows 10 / 11
+- Linux (Ubuntu, Debian, etc.)
+- WSL
+- macOS (experimental)
+
+Note: ARP inspection requires local subnet scanning.
 
 ------------------------------------------------------------------------
 

@@ -1,5 +1,6 @@
 # cli/cli.py
 
+
 import asyncio
 import argparse
 import socket
@@ -10,7 +11,7 @@ from core.scanner import NetworkScanner
 from cli.renderer import render_table, render_summary
 from cli.exporter import export_json, export_csv
 from utils import load_subnets_from_file
-
+from version import __version__, __author__, __company__
 console = Console()
 
 
@@ -20,12 +21,12 @@ console = Console()
 
 def print_banner():
     banner = Text()
-    banner.append("NetScan Enterprise\n", style="bold cyan")
-    banner.append("Made by Humbug Software\n", style="bold white")
+    banner.append("NetScan\n", style="bold cyan")
+    banner.append(f"Version {__version__}\n", style="bold white")
+    banner.append(f"Made by {__company__}\n", style="bold white")
     banner.append("A tool from the NetTools Portfolio\n", style="dim")
-    banner.append("Author: Martin Røsjorde\n", style="dim")
+    banner.append(f"Author: {__author__}\n", style="dim")
     console.print(banner)
-
 
 # -------------------------------------------------
 # Suggest Local Subnet
@@ -50,7 +51,7 @@ def suggest_local_subnet():
 def main():
 
     parser = argparse.ArgumentParser(
-        description="NetScan Enterprise - Multi Network Scanner",
+        description="NetScan - Network Scanner",
         formatter_class=argparse.RawTextHelpFormatter
     )
 
@@ -64,6 +65,12 @@ def main():
         "--file",
         help="File containing subnets (one per line)"
     )
+
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"NetScan {__version__}"
+)
 
     parser.add_argument(
         "--json",

@@ -1,26 +1,72 @@
+# ----------------------------
 # Python
+# ----------------------------
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
+*.py[cod]
+*$py.class
 
-# Virtual environments
+# C extensions
+*.so
+
+# ----------------------------
+# Virtual Environments
+# ----------------------------
 venv/
+.venv/
+env/
+ENV/
 .env/
 .env.*
+.python-version
 
+# ----------------------------
 # PyInstaller
+# ----------------------------
 build/
 dist/
 *.spec
 
+# PyInstaller temp
+__pyinstaller__/
+
+# ----------------------------
+# Packaging
+# ----------------------------
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+
+# ----------------------------
 # Logs
+# ----------------------------
 *.log
 
-# IDE
+# ----------------------------
+# Coverage / Testing
+# ----------------------------
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+
+# ----------------------------
+# IDE / Editors
+# ----------------------------
 .vscode/
 .idea/
+*.sublime-project
+*.sublime-workspace
 
-# OS
+# ----------------------------
+# OS Files
+# ----------------------------
 .DS_Store
 Thumbs.db
+desktop.ini
+
+# ----------------------------
+# Build artifacts (optional)
+# ----------------------------
+*.exe
+*.msi
+*.dll
