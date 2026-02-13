@@ -1,17 +1,16 @@
-# NetScan Enterprise
+# NetScan 
 
-NetScan Enterprise is a high-performance asynchronous network discovery
+NetScan is a asynchronous network discovery
 tool built for internal enterprise environments.
 
 It combines ICMP discovery, ARP inspection, TCP scanning, banner
-grabbing, and asset fingerprinting into a clean, modular framework
-designed for professional network visibility.
+grabbing, and asset fingerprinting.
 
 ------------------------------------------------------------------------
 
 ## 🚀 Overview
 
-NetScan Enterprise is part of the **NetTools Portfolio** by Humbug
+NetScan is part of the **NetTools Portfolio** by Humbug
 Software.
 
 It is designed for:
@@ -201,7 +200,7 @@ pyinstaller --onefile -m cli.cli
 
 ## ⚠ Disclaimer
 
-NetScan Enterprise is intended for authorized internal network
+NetScan is intended for authorized internal network
 environments only.
 
 Do not scan networks without proper authorization.
