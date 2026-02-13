@@ -26,6 +26,14 @@ Built for Windows environments but portable to other platforms.
 
 ------------------------------------------------------------------------
 
+## 📸 Screenshot
+
+<p align="center">
+  <img src="screenshot.png" alt="NetScan Screenshot" width="900">
+</p>
+
+
+
 ## ✨ Features
 
 -   ⚡ Asynchronous high-speed scanning
