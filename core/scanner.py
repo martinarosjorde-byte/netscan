@@ -10,32 +10,29 @@ import manuf
 import platform
 import sys
 import os
+
 DEFAULT_PORTS = [22, 80, 443, 445, 3389]
 IS_WINDOWS = platform.system().lower() == "windows"
-
-def get_manuf_path():
-        if getattr(sys, 'frozen', False):
-            # Running inside PyInstaller
-            base_path = sys._MEIPASS
-        else:
-            base_path = os.path.dirname(__file__)
-
-        return os.path.join(base_path, "manuf", "manuf")
 
 
 class NetworkScanner:
 
     def __init__(self, ports=None, timeout=0.5, max_concurrent=500, resolve_dns=True):
-        self.ports = ports or DEFAULT_PORTS
-        self.timeout = timeout
-        self.max_concurrent = max_concurrent
-        self.resolve_dns = resolve_dns
-        manuf_file = get_manuf_path()
-        self.oui_parser = manuf.MacParser(manuf_file)
+            self.ports = ports or DEFAULT_PORTS
+            self.timeout = timeout
+            self.max_concurrent = max_concurrent
+            self.resolve_dns = resolve_dns
 
+            # If running inside PyInstaller bundle
+            if getattr(sys, "frozen", False):
+                base_path = sys._MEIPASS
+                manuf_path = os.path.join(base_path, "manuf", "manuf")
+                self.oui_parser = manuf.MacParser(manuf_path)
+            else:
+                # Normal Python execution
+                self.oui_parser = manuf.MacParser()
 
-
-           
+            
 
     # -------------------------------------------------
     # ICMP
