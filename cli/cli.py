@@ -1,6 +1,5 @@
 # cli/cli.py
 
-
 import asyncio
 import argparse
 import socket
@@ -147,24 +146,20 @@ def main():
     # -------------------------------------------------
 
     scanner = NetworkScanner()
+    all_results = {}
 
     for subnet in subnets:
-
         console.print(f"\n[bold cyan]Scanning {subnet}...[/bold cyan]")
-
         results = asyncio.run(scanner.scan(subnet))
-
         render_table(subnet, results)
         render_summary(results)
+        all_results[subnet] = results
 
-        if args.json:
-            export_json(results, args.json)
-            console.print(f"[green]JSON exported to {args.json}[/green]")
+    if args.json:
+        export_json(all_results, args.json)
 
-        if args.csv:
-            export_csv(results, args.csv)
-            console.print(f"[green]CSV exported to {args.csv}[/green]")
-
+    if args.csv:
+        export_csv(all_results, args.csv)
 
 if __name__ == "__main__":
     main()
