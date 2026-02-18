@@ -14,8 +14,9 @@ from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeEl
 from core.scanner import NetworkScanner
 from cli.exporter import export_csv, export_json
 from cli.renderer import render_summary, render_table
-from utils import load_subnets_from_file
+from utils.loadsubnets import load_subnets_from_file
 from version import __author__, __company__, __version__
+from utils.updater import  check_for_updates
 
 console = Console()
 
@@ -24,21 +25,21 @@ def print_banner() -> None:
     width = shutil.get_terminal_size().columns
 
     full_logo = [
-        " _   _      _   _____                 ",
-        "| \\ | |    | | /  ___|                ",
-        "|  \\| | ___| |_\\ `--.  ___ __ _ _ __  ",
-        "| . ` |/ _ \\ __|`--. \\/ __/ _` | '_ \\ ",
-        "| |\\  |  __/ |_/\__/ / (_| (_| | | | |",
-        "\\_| \\_/\\___|\\__\\____/ \\___\\__,_|_| |_|"
+        r" _   _      _   _____                 ",
+        r"| \ | |    | | /  ___|                ",
+        r"|  \| | ___| |_\\ `--.  ___ __ _ _ __  ",
+        r"| . ` |/ _ \ __|`--. \/ __/ _` | '_ \ ",
+        r"| |\  |  __/ |_/\__/ / (_| (_| | | | |",
+        r"\_| \_/\___|\__\____/ \___\__,_|_| |_|"
     ]
 
     compact_logo = [
-        " _   _      _   _____ ",
-        "| \\ | |    | | /  ___|",
-        "|  \\| | ___| |_\\ `--. ",
-        "| . ` |/ _ \\ __|`--. \\",
-        "| |\\  |  __/ |_/\__/ /",
-        "\\_| \\_/\\___|\\__\\____/ "
+        r" _   _      _   _____ ",
+        r"| \ | |    | | /  ___|",
+        r"|  \| | ___| |_\\ `--. ",
+        r"| . ` |/ _ \ __|`--. \\",
+        r"| |\  |  __/ |_/\__/ /",
+        r"\_| \_/\___|\__\____/ "
     ]
 
     logo = full_logo if width >= 80 else compact_logo
@@ -47,6 +48,23 @@ def print_banner() -> None:
     for line in logo:
         console.print(f"[bold cyan]{line}[/bold cyan]")
         time.sleep(0.06)
+
+    update_info = check_for_updates()
+
+    if update_info["status"] == "latest":
+        console.print(
+            f"[green]✓ You are running the latest version ({__version__})[/green]\n"
+        )
+
+    elif update_info["status"] == "outdated":
+        console.print(
+            f"[yellow]⚠ New version available: {update_info['latest']} "
+            f"(current {__version__})[/yellow]"
+        )
+        console.print("[dim]Download from GitHub Releases[/dim]\n")
+
+    elif update_info["status"] == "error":
+        console.print("[dim]Update check skipped (offline or blocked)[/dim]\n")
 
     console.print(f"[bold white]Version {__version__}[/bold white]")
     console.print(f"[bold white]Made by {__company__}[/bold white]")
