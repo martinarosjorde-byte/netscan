@@ -2,13 +2,7 @@
 
 from rich.table import Table
 from rich.console import Console
-
-console = Console()
-
-
 import ipaddress
-from rich.table import Table
-from rich.console import Console
 
 console = Console()
 
@@ -18,7 +12,9 @@ def render_table(subnet, results):
     if not results:
         return
 
-    # Determine which columns have any data
+    # -----------------------------
+    # Determine which columns show
+    # -----------------------------
     show_columns = {
         "hostname": any(d.get("hostname") for d in results.values()),
         "mac": any(d.get("mac") for d in results.values()),
@@ -34,6 +30,12 @@ def render_table(subnet, results):
         "ftp": any(d.get("ftp_banner") for d in results.values()),
         "pop3": any(d.get("pop3_banner") for d in results.values()),
         "imap": any(d.get("imap_banner") for d in results.values()),
+        "device": any(d.get("device_type") for d in results.values()),
+        "category": any(d.get("category") for d in results.values()),
+        "possible": any(
+            d.get("fingerprint_matches") and len(d["fingerprint_matches"]) > 1
+            for d in results.values()
+        ),
     }
 
     table = Table(
@@ -42,7 +44,6 @@ def render_table(subnet, results):
         show_lines=False
     )
 
-    # Always show IP
     table.add_column("IP", style="cyan")
 
     if show_columns["hostname"]:
@@ -78,7 +79,21 @@ def render_table(subnet, results):
     if show_columns["imap"]:
         table.add_column("IMAP")
 
-    # Sort IPs numerically
+    if show_columns["device"]:
+        table.add_column("Device")
+
+    if show_columns["category"]:
+        table.add_column("Category")
+
+    if show_columns["device"]:
+        table.add_column("Confidence")
+
+    if show_columns["possible"]:
+        table.add_column("Possible Devices")
+
+    # -----------------------------
+    # Build rows
+    # -----------------------------
     for ip in sorted(results.keys(), key=lambda x: ipaddress.ip_address(x)):
         data = results[ip]
 
@@ -102,7 +117,6 @@ def render_table(subnet, results):
             status = http_data.get("status") or ""
             server = http_data.get("server") or ""
             title = http_data.get("title") or ""
-
             http_parts = [p for p in [status, server, title] if p]
             row.append(" | ".join(http_parts))
 
@@ -125,9 +139,56 @@ def render_table(subnet, results):
         if show_columns["imap"]:
             row.append(data.get("imap_banner") or "")
 
+        # -----------------------------
+        # Device + Auto Unknown Tag
+        # -----------------------------
+        device = data.get("device_type")
+        confidence = data.get("confidence")
+        category = data.get("category")
+
+        if not device and data.get("ports"):
+            device = "Unknown Device"
+            confidence = 0.2
+            category = "Unclassified"
+
+        if show_columns["device"]:
+            row.append(device or "")
+
+        if show_columns["category"]:
+            row.append(category or "")
+
+        # -----------------------------
+        # Color-coded confidence
+        # -----------------------------
+        if show_columns["device"]:
+            if confidence:
+                if confidence >= 0.9:
+                    conf_display = f"[green]{int(confidence * 100)}%[/green]"
+                elif confidence >= 0.7:
+                    conf_display = f"[yellow]{int(confidence * 100)}%[/yellow]"
+                else:
+                    conf_display = f"[red]{int(confidence * 100)}%[/red]"
+            else:
+                conf_display = ""
+
+            row.append(conf_display)
+
+        # -----------------------------
+        # Possible devices
+        # -----------------------------
+        if show_columns["possible"]:
+            possibles = []
+            if data.get("fingerprint_matches"):
+                for m in data["fingerprint_matches"][1:3]:
+                    possibles.append(
+                        f'{m["device_type"]} ({int(m["confidence"]*100)}%)'
+                    )
+            row.append("\n".join(possibles))
+
         table.add_row(*row)
 
     console.print(table)
+
 
 def render_summary(results):
 

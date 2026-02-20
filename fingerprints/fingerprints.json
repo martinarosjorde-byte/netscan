@@ -1,0 +1,105 @@
+[
+  {
+    "name": "Microsoft IIS Server",
+    "category": "Web Server",
+    "os_guess": "Windows",
+    "server_contains": ["Microsoft-IIS"],
+    "confidence_weight": 1.2
+  },
+  {
+    "name": "Microsoft Exchange",
+    "category": "Mail Server",
+    "http_title_contains": ["Outlook"],
+    "server_contains": ["Microsoft-IIS"],
+    "ports": [443],
+    "confidence_weight": 1.4
+  },
+  {
+    "name": "Windows Server",
+    "category": "Server",
+    "ports": [445, 3389],
+    "hostname_contains": ["srv", "dc"],
+    "confidence_weight": 1.1
+  },
+  {
+    "name": "Apache Web Server",
+    "category": "Web Server",
+    "server_contains": ["Apache"],
+    "confidence_weight": 1.2
+  },
+  {
+    "name": "Nginx Web Server",
+    "category": "Web Server",
+    "server_contains": ["nginx"],
+    "confidence_weight": 1.2
+  },
+  {
+    "name": "Cisco IOS Device",
+    "category": "Network Device",
+    "os_guess": "Cisco IOS",
+    "server_contains": ["cisco-ios"],
+    "mac_vendor_contains": ["Cisco"],
+    "confidence_weight": 1.5
+  },
+  {
+    "name": "Cisco Network Device (Generic)",
+    "category": "Network Device",
+    "mac_vendor_contains": ["Cisco"],
+    "ports": [22, 80],
+    "confidence_weight": 1.2
+  },
+  {
+    "name": "HPE iLO",
+    "category": "Management Interface",
+    "mac_vendor_contains": ["Hewlett"],
+    "ssh_banner_contains": ["Mocana"],
+    "confidence_weight": 1.6
+  },
+  {
+    "name": "FortiGate Firewall",
+    "category": "Firewall",
+    "http_title_contains": ["FortiGate"],
+    "cert_common_name_contains": ["fortigate"],
+    "confidence_weight": 1.6
+  },
+  {
+    "name": "Proxmox VE",
+    "category": "Hypervisor",
+    "http_title_contains": ["Proxmox"],
+    "ports": [8006],
+    "confidence_weight": 1.5
+  },
+  {
+    "name": "VMware ESXi",
+    "category": "Hypervisor",
+    "http_title_contains": ["VMware ESXi"],
+    "cert_issuer_contains": ["VMware"],
+    "confidence_weight": 1.5
+  },
+  {
+    "name": "Synology NAS",
+    "category": "NAS",
+    "http_title_contains": ["Synology"],
+    "ports": [5000, 5001],
+    "confidence_weight": 1.5
+  },
+  {
+    "name": "Postfix Mail Server",
+    "category": "Mail Server",
+    "smtp_banner_contains": ["Postfix"],
+    "confidence_weight": 1.4
+  },
+  {
+    "name": "Dovecot Mail Server",
+    "category": "Mail Server",
+    "imap_banner_contains": ["Dovecot"],
+    "pop3_banner_contains": ["Dovecot"],
+    "confidence_weight": 1.4
+  },
+  {
+    "name": "OpenSSH Server",
+    "category": "Remote Access",
+    "ssh_banner_contains": ["OpenSSH"],
+    "confidence_weight": 0.7
+  }
+]
