@@ -267,14 +267,29 @@ class NetworkScanner:
         for ip in alive:
             ip_obj = ipaddress.ip_address(ip)
 
+            # Skip multicast & loopback
             if ip_obj.is_multicast or ip_obj.is_loopback:
+                continue
+
+            # Skip network & broadcast
+            if ip_obj == network.network_address:
+                continue
+
+            if ip_obj == network.broadcast_address:
+                continue
+
+            # Skip only broadcast MAC
+            mac = arp_entries.get(ip)
+            if mac and mac.lower() == "ff:ff:ff:ff:ff:ff":
                 continue
 
             cleaned.append(ip)
 
+        # Proper IP sort here
         cleaned.sort(key=lambda x: ipaddress.ip_address(x))
 
         return cleaned, arp_entries
+        
     # -------------------------------------------------
     # Full Scan
     # -------------------------------------------------
