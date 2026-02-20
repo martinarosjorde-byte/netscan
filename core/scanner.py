@@ -157,17 +157,28 @@ class NetworkScanner:
             if port == 443:
                 ssl_obj = writer.get_extra_info("ssl_object")
                 if ssl_obj:
-                    cert = ssl_obj.getpeercert()
-                    if cert:
+                    cert_bin = ssl_obj.getpeercert(binary_form=True)
+                    if cert_bin:
+                        cert = ssl._ssl._test_decode_cert(cert_bin)
+
+                        cert_info = {
+                            "common_name": None,
+                            "organization": None,
+                            "issuer": None,
+                            "expires": cert.get("notAfter"),
+                            "san": []
+                        }
+
                         subject = dict(x[0] for x in cert.get("subject", []))
                         issuer = dict(x[0] for x in cert.get("issuer", []))
-                        cert_info = {
-                            "common_name": subject.get("commonName"),
-                            "organization": subject.get("organizationName"),
-                            "issuer": issuer.get("commonName"),
-                            "expires": cert.get("notAfter"),
-                            "san": [entry[1] for entry in cert.get("subjectAltName", []) if entry[0] == "DNS"]
-                        }
+
+                        cert_info["common_name"] = subject.get("commonName")
+                        cert_info["organization"] = subject.get("organizationName")
+                        cert_info["issuer"] = issuer.get("commonName")
+
+                        for entry in cert.get("subjectAltName", []):
+                            if entry[0] == "DNS":
+                                cert_info["san"].append(entry[1])
 
             request = f"GET / HTTP/1.1\r\nHost: {ip}\r\nConnection: close\r\n\r\n"
             writer.write(request.encode())
@@ -232,7 +243,13 @@ class NetworkScanner:
 
     async def discover_hosts(self, subnet):
         network = ipaddress.ip_network(subnet, strict=False)
-        ips = list(network.hosts())
+
+        # Fix for /32 single host scan
+        if network.prefixlen == 32:
+            ips = [network.network_address]
+        else:
+            ips = list(network.hosts())
+
         alive = set()
 
         ping_tasks = [self.icmp_ping(ip) for ip in ips]
@@ -246,17 +263,18 @@ class NetworkScanner:
         alive.update(arp_entries.keys())
 
         cleaned = []
+
         for ip in alive:
             ip_obj = ipaddress.ip_address(ip)
+
             if ip_obj.is_multicast or ip_obj.is_loopback:
                 continue
-            if ip_obj == network.broadcast_address:
-                continue
+
             cleaned.append(ip)
 
         cleaned.sort(key=lambda x: ipaddress.ip_address(x))
-        return cleaned, arp_entries
 
+        return cleaned, arp_entries
     # -------------------------------------------------
     # Full Scan
     # -------------------------------------------------

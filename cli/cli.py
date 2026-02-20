@@ -21,57 +21,70 @@ from utils.updater import  check_for_updates
 console = Console()
 
 
-def print_banner() -> None:
+
+from rich.console import Console
+import shutil
+import time
+from version import __version__, __author__, __company__
+
+console = Console()
+
+
+def print_banner(update_message=None):
     width = shutil.get_terminal_size().columns
 
-    full_logo = [
+    logo = [
         r" _   _      _   _____                 ",
         r"| \ | |    | | /  ___|                ",
-        r"|  \| | ___| |_\\ `--.  ___ __ _ _ __  ",
+        r"|  \| | ___| |_\ `--.  ___ __ _ _ __  ",
         r"| . ` |/ _ \ __|`--. \/ __/ _` | '_ \ ",
         r"| |\  |  __/ |_/\__/ / (_| (_| | | | |",
         r"\_| \_/\___|\__\____/ \___\__,_|_| |_|"
     ]
 
-    compact_logo = [
-        r" _   _      _   _____ ",
-        r"| \ | |    | | /  ___|",
-        r"|  \| | ___| |_\\ `--. ",
-        r"| . ` |/ _ \ __|`--. \\",
-        r"| |\  |  __/ |_/\__/ /",
-        r"\_| \_/\___|\__\____/ "
+    info = [
+        f"Version {__version__}",
+        f"Made by {__company__}",
+        "A tool from the NetTools Portfolio",
+        f"Author: {__author__}"
     ]
 
-    logo = full_logo if width >= 80 else compact_logo
+    if not update_message:
+        update_message = "Update check skipped (offline or blocked)"
 
     console.print()
-    for line in logo:
-        console.print(f"[bold cyan]{line}[/bold cyan]")
-        time.sleep(0.06)
 
-    update_info = check_for_updates()
+    max_logo_width = max(len(line) for line in logo)
+    spacing = 8
 
-    if update_info["status"] == "latest":
-        console.print(
-            f"[green]✓ You are running the latest version ({__version__})[/green]\n"
+    logo_height = len(logo)
+    info_height = len(info)
+
+    # Calculate how many empty lines before info starts
+    info_start_line = logo_height - info_height
+
+    for i in range(logo_height):
+        left = logo[i]
+
+        # Only print info when reaching bottom-aligned start
+        if i >= info_start_line:
+            right = info[i - info_start_line]
+        else:
+            right = ""
+
+        padding = max_logo_width - len(left)
+
+        line = (
+            f"[bold cyan]{left}[/bold cyan]"
+            + " " * (padding + spacing)
+            + f"[bold white]{right}[/bold white]"
         )
 
-    elif update_info["status"] == "outdated":
-        console.print(
-            f"[yellow]⚠ New version available: {update_info['latest']} "
-            f"(current {__version__})[/yellow]"
-        )
-        console.print("[dim]Download from GitHub Releases[/dim]\n")
+        console.print(line)
+        #time.sleep(0.05)
 
-    elif update_info["status"] == "error":
-        console.print("[dim]Update check skipped (offline or blocked)[/dim]\n")
-
-    console.print(f"[bold white]Version {__version__}[/bold white]")
-    console.print(f"[bold white]Made by {__company__}[/bold white]")
-    console.print("[dim]A tool from the NetTools Portfolio[/dim]")
-    console.print(f"[dim]Author: {__author__}[/dim]")
-    console.print()
-
+    console.print(f"[dim]{update_message}[/dim]")
+    
 
 def suggest_local_subnet() -> str | None:
     try:
