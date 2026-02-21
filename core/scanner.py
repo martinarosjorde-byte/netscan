@@ -12,12 +12,8 @@ import sys
 import os
 from core.fingerprint import FingerprintEngine
 
-DEFAULT_PORTS = [
-    20, 21, 22, 23, 25, 80, 110, 143,
-    443, 445, 1433, 1521, 3000, 3306,
-    3389, 5000, 5432, 5985, 5986, 6443,
-    6379, 5900, 8000, 8080, 8443, 9000,
-    9090, 9200
+CORE_PORTS = [
+    22, 80, 443, 25, 445, 3389
 ]
 
 IS_WINDOWS = platform.system().lower() == "windows"
@@ -26,14 +22,19 @@ IS_WINDOWS = platform.system().lower() == "windows"
 class NetworkScanner:
 
     def __init__(self, ports=None, timeout=0.5, max_concurrent=500):
-        self.ports = ports or DEFAULT_PORTS
+  
         self.timeout = timeout
         self.max_concurrent = max_concurrent
         self.hostname_semaphore = asyncio.Semaphore(50)
         self.banner_semaphore = asyncio.Semaphore(100)
-
         self.fingerprint_engine = FingerprintEngine()
-
+  
+        db_ports = self._extract_ports_from_fingerprint_db()
+        if ports:
+            self.ports = sorted(set(ports))
+        else:
+            self.ports = sorted(set(CORE_PORTS + db_ports))
+        print(f"Loaded {len(self.ports)} scan ports from fingerprint DB")
         # PyInstaller-safe manuf
         if getattr(sys, "frozen", False):
             base_path = sys._MEIPASS
@@ -42,6 +43,29 @@ class NetworkScanner:
         else:
             self.oui_parser = manuf.MacParser()
 
+    
+    
+    def _extract_ports_from_fingerprint_db(self):
+        ports = []
+
+        try:
+            rules = self.fingerprint_engine.database
+
+            # Support new structure with metadata + rules
+            if isinstance(rules, dict):
+                rules = rules.get("rules", [])
+
+            for rule in rules:
+                rule_ports = rule.get("ports", [])
+                for p in rule_ports:
+                    if isinstance(p, int):
+                        ports.append(p)
+
+        except Exception:
+            pass
+
+        return ports
+    
     # -------------------------------------------------
     # ICMP
     # -------------------------------------------------
@@ -286,7 +310,7 @@ class NetworkScanner:
     # -------------------------------------------------
 
     async def scan(self, subnet: str, progress_callback=None):
-
+        
         semaphore = asyncio.Semaphore(self.max_concurrent)
         alive_hosts, arp_entries = await self.discover_hosts(subnet)
 

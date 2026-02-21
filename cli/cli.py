@@ -48,7 +48,7 @@ def print_banner(update_message=None):
     ]
 
     console.print()
-
+    
     max_logo_width = max(len(line) for line in logo)
     spacing = 8
     info_start_line = len(logo) - len(info)
@@ -193,7 +193,7 @@ def main() -> None:
         else:
             if local_version:
                 update_message = f"Fingerprint DB version {local_version}"
-
+    
     print_banner(update_message)
 
     # -------------------------------------------------
