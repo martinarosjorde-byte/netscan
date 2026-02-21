@@ -7,13 +7,17 @@ import ipaddress
 console = Console()
 
 
+# -------------------------------------------------
+# Table Renderer
+# -------------------------------------------------
+
 def render_table(subnet, results):
 
     if not results:
         return
 
     # -----------------------------
-    # Determine which columns show
+    # Determine dynamic columns
     # -----------------------------
     show_columns = {
         "hostname": any(d.get("hostname") for d in results.values()),
@@ -30,12 +34,9 @@ def render_table(subnet, results):
         "ftp": any(d.get("ftp_banner") for d in results.values()),
         "pop3": any(d.get("pop3_banner") for d in results.values()),
         "imap": any(d.get("imap_banner") for d in results.values()),
-        "device": any(d.get("device_type") for d in results.values()),
-        "category": any(d.get("category") for d in results.values()),
-        "possible": any(
-            d.get("fingerprint_matches") and len(d["fingerprint_matches"]) > 1
-            for d in results.values()
-        ),
+        "os": any(d.get("os_family") for d in results.values()),
+        "identity": any(d.get("device_identity") for d in results.values()),
+        "services": any(d.get("services") for d in results.values()),
     }
 
     table = Table(
@@ -43,6 +44,10 @@ def render_table(subnet, results):
         header_style="bold white",
         show_lines=False
     )
+
+    # -----------------------------
+    # Column Order (clean layout)
+    # -----------------------------
 
     table.add_column("IP", style="cyan")
 
@@ -54,6 +59,12 @@ def render_table(subnet, results):
 
     if show_columns["vendor"]:
         table.add_column("Vendor")
+
+    if show_columns["os"]:
+        table.add_column("OS")
+
+    if show_columns["identity"]:
+        table.add_column("Identity")
 
     if show_columns["ports"]:
         table.add_column("Open Ports")
@@ -79,24 +90,16 @@ def render_table(subnet, results):
     if show_columns["imap"]:
         table.add_column("IMAP")
 
-    if show_columns["device"]:
-        table.add_column("Device")
-
-    if show_columns["category"]:
-        table.add_column("Category")
-
-    if show_columns["device"]:
-        table.add_column("Confidence")
-
-    if show_columns["possible"]:
-        table.add_column("Possible Devices")
+    if show_columns["services"]:
+        table.add_column("Services")
 
     # -----------------------------
-    # Build rows
+    # Build Rows
     # -----------------------------
+
     for ip in sorted(results.keys(), key=lambda x: ipaddress.ip_address(x)):
-        data = results[ip]
 
+        data = results[ip]
         row = [ip]
 
         if show_columns["hostname"]:
@@ -108,22 +111,60 @@ def render_table(subnet, results):
         if show_columns["vendor"]:
             row.append(data.get("vendor") or "")
 
+        # -----------------------------
+        # OS Display (color-coded)
+        # -----------------------------
+        if show_columns["os"]:
+            os_name = data.get("os_family") or ""
+            os_conf = data.get("os_confidence") or 0
+
+            if os_name:
+                if os_conf >= 0.8:
+                    os_display = f"[green]{os_name} ({int(os_conf*100)}%)[/green]"
+                elif os_conf >= 0.5:
+                    os_display = f"[yellow]{os_name} ({int(os_conf*100)}%)[/yellow]"
+                else:
+                    os_display = f"[red]{os_name} ({int(os_conf*100)}%)[/red]"
+            else:
+                os_display = ""
+
+            row.append(os_display)
+
+        # -----------------------------
+        # Identity
+        # -----------------------------
+        if show_columns["identity"]:
+            row.append(data.get("device_identity") or "")
+
+        # -----------------------------
+        # Ports
+        # -----------------------------
         if show_columns["ports"]:
             ports = ", ".join(map(str, data.get("ports") or []))
             row.append(ports)
 
+        # -----------------------------
+        # HTTP
+        # -----------------------------
         if show_columns["http"]:
             http_data = data.get("http_443") or data.get("http_80") or {}
             status = http_data.get("status") or ""
             server = http_data.get("server") or ""
             title = http_data.get("title") or ""
+
             http_parts = [p for p in [status, server, title] if p]
             row.append(" | ".join(http_parts))
 
+        # -----------------------------
+        # Certificate
+        # -----------------------------
         if show_columns["cert"]:
             cert = (data.get("http_443") or {}).get("cert") or {}
             row.append(cert.get("common_name") or "")
 
+        # -----------------------------
+        # Banners
+        # -----------------------------
         if show_columns["ssh"]:
             row.append(data.get("ssh_banner") or "")
 
@@ -140,65 +181,47 @@ def render_table(subnet, results):
             row.append(data.get("imap_banner") or "")
 
         # -----------------------------
-        # Device + Auto Unknown Tag
+        # Services Layer
         # -----------------------------
-        device = data.get("device_type")
-        confidence = data.get("confidence")
-        category = data.get("category")
+        if show_columns["services"]:
+            services = []
 
-        if not device and data.get("ports"):
-            device = "Unknown Device"
-            confidence = 0.2
-            category = "Unclassified"
+            for s in data.get("services", []):
+                name = s.get("name")  # ✅ correct key
+                conf = s.get("confidence", 0)
 
-        if show_columns["device"]:
-            row.append(device or "")
+                if not name:
+                    continue
 
-        if show_columns["category"]:
-            row.append(category or "")
-
-        # -----------------------------
-        # Color-coded confidence
-        # -----------------------------
-        if show_columns["device"]:
-            if confidence:
-                if confidence >= 0.9:
-                    conf_display = f"[green]{int(confidence * 100)}%[/green]"
-                elif confidence >= 0.7:
-                    conf_display = f"[yellow]{int(confidence * 100)}%[/yellow]"
+                if conf >= 0.8:
+                    service_str = f"[green]{name} ({int(conf*100)}%)[/green]"
+                elif conf >= 0.5:
+                    service_str = f"[yellow]{name} ({int(conf*100)}%)[/yellow]"
                 else:
-                    conf_display = f"[red]{int(confidence * 100)}%[/red]"
-            else:
-                conf_display = ""
+                    service_str = f"[red]{name} ({int(conf*100)}%)[/red]"
 
-            row.append(conf_display)
+                services.append(service_str)
 
-        # -----------------------------
-        # Possible devices
-        # -----------------------------
-        if show_columns["possible"]:
-            possibles = []
-            if data.get("fingerprint_matches"):
-                for m in data["fingerprint_matches"][1:3]:
-                    possibles.append(
-                        f'{m["device_type"]} ({int(m["confidence"]*100)}%)'
-                    )
-            row.append("\n".join(possibles))
+        row.append("\n".join(services))
 
         table.add_row(*row)
 
     console.print(table)
 
 
+# -------------------------------------------------
+# Summary
+# -------------------------------------------------
+
 def render_summary(results):
 
     total_hosts = len(results)
-    hosts_with_ports = sum(1 for d in results.values() if d["ports"])
-    total_ports = sum(len(d["ports"]) for d in results.values())
+    hosts_with_ports = sum(1 for d in results.values() if d.get("ports"))
+    total_ports = sum(len(d.get("ports") or []) for d in results.values())
 
     console.print()
     console.print(
         f"[bold]Hosts:[/bold] {total_hosts}  "
-        f"[bold]Open:[/bold] {hosts_with_ports}  "
-        f"[bold]Ports:[/bold] {total_ports}"
+        f"[bold]Open Hosts:[/bold] {hosts_with_ports}  "
+        f"[bold]Total Open Ports:[/bold] {total_ports}"
     )

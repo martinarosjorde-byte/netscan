@@ -21,7 +21,8 @@ IS_WINDOWS = platform.system().lower() == "windows"
 
 class NetworkScanner:
 
-    def __init__(self, ports=None, timeout=0.5, max_concurrent=500):
+    def __init__(self, ports=None, timeout=0.5, max_concurrent=500, debug=False):
+        self.debug = debug
   
         self.timeout = timeout
         self.max_concurrent = max_concurrent
@@ -43,28 +44,51 @@ class NetworkScanner:
         else:
             self.oui_parser = manuf.MacParser()
 
-    
+    def _debug(self, *args):
+        if self.debug:
+            print("[DEBUG]", *args)
     
     def _extract_ports_from_fingerprint_db(self):
-        ports = []
+        ports = set()
 
         try:
             rules = self.fingerprint_engine.database
-
-            # Support new structure with metadata + rules
             if isinstance(rules, dict):
                 rules = rules.get("rules", [])
 
+            # Rules imply ports even without explicit "ports"
+            IMPLIED = {
+                "http_title_contains": [80, 443],
+                "server_contains": [80, 443],
+                "cert_common_name_contains": [443],
+                "cert_issuer_contains": [443],
+                "cert_san_contains": [443],
+                "favicon_hash": [80, 443],
+
+                "ssh_banner_contains": [22],
+                "telnet_banner_contains": [23],
+                "smtp_banner_contains": [25],
+                "ftp_banner_contains": [21],
+                "pop3_banner_contains": [110],
+                "imap_banner_contains": [143],
+            }
+
             for rule in rules:
-                rule_ports = rule.get("ports", [])
-                for p in rule_ports:
+                # explicit ports
+                for p in rule.get("ports", []) or []:
                     if isinstance(p, int):
-                        ports.append(p)
+                        ports.add(p)
+
+                # implied ports
+                for key, implied_ports in IMPLIED.items():
+                    if rule.get(key):
+                        for p in implied_ports:
+                            ports.add(p)
 
         except Exception:
             pass
 
-        return ports
+        return sorted(ports)
     
     # -------------------------------------------------
     # ICMP
@@ -309,13 +333,17 @@ class NetworkScanner:
     # Full Scan
     # -------------------------------------------------
 
-    async def scan(self, subnet: str, progress_callback=None):
         
+    async def scan(self, subnet: str, progress_callback=None):
+
         semaphore = asyncio.Semaphore(self.max_concurrent)
         alive_hosts, arp_entries = await self.discover_hosts(subnet)
 
         results = {}
 
+        # -------------------------------------------------
+        # Initialize host structure
+        # -------------------------------------------------
         for ip in alive_hosts:
             results[ip] = {
                 "hostname": None,
@@ -328,13 +356,28 @@ class NetworkScanner:
                 "smtp_banner": None,
                 "ftp_banner": None,
                 "pop3_banner": None,
-                "imap_banner": None
+                "imap_banner": None,
+
+                # Layered classification
+                "os_family": None,
+                "os_confidence": None,
+                "device_identity": None,
+
+                # Fingerprint outputs
+                "services": [],
+                "fingerprint_matches": [],
+                "device_type": None,
+                "category": None,
+                "os_guess": None,
+                "confidence": None,
             }
 
             if results[ip]["mac"]:
                 results[ip]["vendor"] = self.oui_parser.get_manuf(results[ip]["mac"])
 
-        # Hostnames
+        # -------------------------------------------------
+        # Hostname Resolution
+        # -------------------------------------------------
         hostname_tasks = [self.resolve_host(ip) for ip in alive_hosts]
         hostname_results = await asyncio.gather(*hostname_tasks)
 
@@ -342,7 +385,9 @@ class NetworkScanner:
             if result:
                 results[ip]["hostname"] = result[0]
 
-        # Port scanning
+        # -------------------------------------------------
+        # Port Scanning
+        # -------------------------------------------------
         total_tasks = len(alive_hosts) * len(self.ports)
         completed = 0
 
@@ -368,46 +413,99 @@ class NetworkScanner:
             *(check_port(ip, port) for ip in alive_hosts for port in self.ports)
         )
 
-        # Banner grabbing in parallel per host
         for ip in results:
             results[ip]["ports"].sort()
 
+        # -------------------------------------------------
+        # Banner Grabbing
+        # -------------------------------------------------
         banner_tasks = []
 
         for ip in results:
-            if 80 in results[ip]["ports"]:
+            ports = results[ip]["ports"]
+
+            if 80 in ports:
                 banner_tasks.append(self._assign_http(ip, 80, results))
-            if 443 in results[ip]["ports"]:
+            if 443 in ports:
                 banner_tasks.append(self._assign_http(ip, 443, results))
-            if 22 in results[ip]["ports"]:
+
+            if 22 in ports:
                 banner_tasks.append(self._assign_banner(ip, 22, "ssh_banner", results))
-            if 25 in results[ip]["ports"]:
+            if 25 in ports:
                 banner_tasks.append(self._assign_banner(ip, 25, "smtp_banner", results))
-            if 21 in results[ip]["ports"]:
+            if 21 in ports:
                 banner_tasks.append(self._assign_banner(ip, 21, "ftp_banner", results))
-            if 110 in results[ip]["ports"]:
+            if 110 in ports:
                 banner_tasks.append(self._assign_banner(ip, 110, "pop3_banner", results))
-            if 143 in results[ip]["ports"]:
+            if 143 in ports:
                 banner_tasks.append(self._assign_banner(ip, 143, "imap_banner", results))
 
         await asyncio.gather(*banner_tasks)
 
-        # Fingerprinting
+        # -------------------------------------------------
+        # OS + Identity + Fingerprinting
+        # -------------------------------------------------
         for ip in results:
-            fp = self.fingerprint_engine.fingerprint(results[ip])
-            results[ip]["fingerprint_matches"] = fp.get("matches", [])
+
+            host = results[ip]
+
+            # -------------------------
+            # OS Detection
+            # -------------------------
+            os_info = self.detect_os(host)
+            host["os_family"] = os_info["os"]
+            host["os_confidence"] = os_info["confidence"]
+
+            # -------------------------
+            # Identity Layer
+            # -------------------------
+            host["device_identity"] = self.detect_device_identity(host, os_info)
+
+            # -------------------------
+            # Fingerprinting
+            # -------------------------
+            fp = self.fingerprint_engine.fingerprint(host)
+
+            matches = fp.get("matches", [])
             best = fp.get("best_match")
 
+            host["fingerprint_matches"] = matches
+
+            # Build Services (filtered)
+            services = []
+            for m in matches:
+                if m.get("confidence", 0) >= 0.6:
+                    services.append({
+                        "name": m.get("device_type"),
+                        "category": m.get("category"),
+                        "confidence": m.get("confidence"),
+                    })
+
+            host["services"] = services
+
+            # Primary classification
             if best:
-                results[ip]["device_type"] = best.get("device_type")
-                results[ip]["os_guess"] = best.get("os_guess")
-                results[ip]["confidence"] = best.get("confidence")
-            else:
-                results[ip]["device_type"] = None
-                results[ip]["os_guess"] = None
-                results[ip]["confidence"] = None
+                host["device_type"] = best.get("device_type")
+                host["category"] = best.get("category")
+                host["os_guess"] = best.get("os_guess")
+                host["confidence"] = best.get("confidence")
+
+            # -------------------------
+            # DEBUG OUTPUT
+            # -------------------------
+            if self.debug:
+                print("\n[DEBUG] ---------------------------")
+                print("[DEBUG] Host:", ip)
+                print("[DEBUG] Ports:", host["ports"])
+                print("[DEBUG] OS:", host["os_family"], host["os_confidence"])
+                print("[DEBUG] Identity:", host["device_identity"])
+                print("[DEBUG] Raw FP Matches:", matches)
+                print("[DEBUG] Filtered Services:", services)
+                print("[DEBUG] Best Match:", best)
 
         return results
+
+##
 
     async def _assign_http(self, ip, port, results):
         data = await self.grab_http_banner(ip, port)
@@ -416,3 +514,91 @@ class NetworkScanner:
     async def _assign_banner(self, ip, port, field, results):
         data = await self.grab_tcp_banner(ip, port)
         results[ip][field] = data
+
+
+    def detect_os(self, host):
+
+        score = 0
+        ports = host.get("ports", [])
+        vendor = (host.get("vendor") or "").lower()
+
+        http80 = host.get("http_80") or {}
+        http443 = host.get("http_443") or {}
+
+        server = (
+            (http80.get("server") or "") + " " +
+            (http443.get("server") or "")
+        ).lower()
+
+        # Windows indicators
+        if 445 in ports:
+            score += 3
+        if 3389 in ports:
+            score += 3
+        if "microsoft-iis" in server:
+            score += 4
+        if 5985 in ports or 5986 in ports:
+            score += 2
+
+        if score >= 4:
+            return {"os": "Windows", "confidence": min(score / 10, 1.0)}
+
+        # Linux indicators
+        linux_score = 0
+
+        if 22 in ports and 445 not in ports:
+            linux_score += 2
+
+        if any(x in server for x in ["nginx", "apache"]):
+            linux_score += 3
+
+        if 6443 in ports:
+            linux_score += 3
+
+        if linux_score >= 3:
+            return {"os": "Linux", "confidence": min(linux_score / 8, 1.0)}
+
+        # Network OS
+        if any(x in vendor for x in ["cisco", "aruba", "juniper", "mikrotik"]):
+            return {"os": "Network OS", "confidence": 0.9}
+
+        return {"os": "Unknown", "confidence": 0.2}
+    
+    def detect_device_identity(self, host, os_info):
+
+        os_guess = os_info["os"]
+        ports = host.get("ports", [])
+        vendor = (host.get("vendor") or "").lower()
+        hostname = (host.get("hostname") or "").lower()
+
+        # Firewalls
+        if any(x in vendor for x in ["fortinet", "palo", "check point", "juniper"]):
+            return "Firewall"
+
+        # Network Devices
+        if any(x in vendor for x in ["cisco", "aruba", "mikrotik", "ubiquiti"]):
+            return "Network Device"
+
+        # Hypervisor
+        if 8006 in ports:
+            return "Hypervisor"
+
+        # Management interfaces
+        if any(x in vendor for x in ["dell", "hewlett", "lenovo"]) and 443 in ports:
+            return "Management Interface"
+
+        # Windows classification
+        if os_guess == "Windows":
+            if any(x in hostname for x in ["dc", "srv", "sql", "app"]):
+                return "Server"
+            if 3389 in ports and 445 in ports:
+                return "Server"
+            return "Workstation"
+
+        # Linux
+        if os_guess == "Linux":
+            if 22 in ports and 80 in ports:
+                return "Server"
+            return "Linux Host"
+
+        return "Unknown Device"

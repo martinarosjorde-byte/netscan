@@ -1,532 +1,226 @@
 {
   "metadata": {
     "name": "NetScan Fingerprint Database",
-    "version": "1.0.2",
+    "version": "2.0.0",
     "last_updated": "2026-02-21",
     "author": "Humbug Software",
-    "description": "Weighted multi-signal fingerprint database for NetScan device classification."
+    "description": "Enterprise-grade high-signal fingerprint database for NetScan."
   },
+
   "rules": [
+
     {
       "name": "Microsoft IIS Server",
       "category": "Web Server",
       "os_guess": "Windows",
-      "server_contains": ["Microsoft-IIS"],
-      "confidence_weight": 1.2
+      "server_contains": ["Microsoft-IIS"]
     },
+
     {
       "name": "Microsoft Exchange",
       "category": "Mail Server",
       "http_title_contains": ["Outlook"],
       "server_contains": ["Microsoft-IIS"],
-      "ports": [443],
-      "confidence_weight": 1.4
+      "ports": [443]
     },
-    {
-      "name": "Windows Server",
-      "category": "Server",
-      "ports": [445, 3389],
-      "hostname_contains": ["srv", "dc"],
-      "confidence_weight": 1.1
-    },
+
     {
       "name": "Apache Web Server",
       "category": "Web Server",
-      "server_contains": ["Apache"],
-      "confidence_weight": 1.2
+      "server_contains": ["Apache"]
     },
+
     {
       "name": "Nginx Web Server",
       "category": "Web Server",
-      "server_contains": ["nginx"],
-      "confidence_weight": 1.2
+      "server_contains": ["nginx"]
     },
+
     {
       "name": "Cisco IOS Device",
       "category": "Network Device",
       "os_guess": "Cisco IOS",
       "server_contains": ["cisco-ios"],
-      "mac_vendor_contains": ["Cisco"],
-      "confidence_weight": 1.5
+      "mac_vendor_contains": ["Cisco"]
     },
-    {
-      "name": "Cisco Network Device (Generic)",
-      "category": "Network Device",
-      "mac_vendor_contains": ["Cisco"],
-      "ports": [22, 80],
-      "confidence_weight": 1.2
-    },
+
     {
       "name": "HPE iLO",
       "category": "Management Interface",
-      "mac_vendor_contains": ["Hewlett"],
       "ssh_banner_contains": ["Mocana"],
-      "confidence_weight": 1.6
+      "http_title_contains": ["Integrated Lights-Out"],
+      "mac_vendor_contains": ["Hewlett"]
     },
+
     {
       "name": "FortiGate Firewall",
       "category": "Firewall",
       "http_title_contains": ["FortiGate"],
-      "cert_common_name_contains": ["fortigate"],
-      "confidence_weight": 1.6
+      "cert_common_name_contains": ["fortigate"]
     },
+
+    {
+      "name": "pfSense Firewall",
+      "category": "Firewall",
+      "http_title_contains": ["pfSense"],
+      "server_contains": ["lighttpd"]
+    },
+
+    {
+      "name": "Palo Alto Firewall",
+      "category": "Firewall",
+      "http_title_contains": ["Palo Alto Networks"],
+      "cert_common_name_contains": ["pan"]
+    },
+
+    {
+      "name": "Check Point Firewall",
+      "category": "Firewall",
+      "http_title_contains": ["Check Point"],
+      "server_contains": ["Check Point"]
+    },
+
+    {
+      "name": "Juniper SRX",
+      "category": "Firewall",
+      "http_title_contains": ["Juniper"],
+      "server_contains": ["Juniper"]
+    },
+
+    {
+      "name": "F5 BIG-IP",
+      "category": "Load Balancer",
+      "http_title_contains": ["BIG-IP"],
+      "server_contains": ["BigIP"]
+    },
+
+    {
+      "name": "Citrix NetScaler",
+      "category": "Load Balancer",
+      "server_contains": ["NS-CACHE"],
+      "http_title_contains": ["Citrix"]
+    },
+
+    {
+      "name": "Aruba CX Switch",
+      "category": "Network Device",
+      "http_title_contains": ["ArubaOS"],
+      "mac_vendor_contains": ["Aruba"]
+    },
+
+    {
+      "name": "Dell iDRAC",
+      "category": "Management Interface",
+      "http_title_contains": ["iDRAC"],
+      "mac_vendor_contains": ["Dell"]
+    },
+
+    {
+      "name": "Lenovo XClarity Controller",
+      "category": "Management Interface",
+      "http_title_contains": ["XClarity"]
+    },
+
     {
       "name": "Proxmox VE",
       "category": "Hypervisor",
       "http_title_contains": ["Proxmox"],
-      "ports": [8006],
-      "confidence_weight": 1.5
+      "ports": [8006]
     },
+
     {
       "name": "VMware ESXi",
       "category": "Hypervisor",
       "http_title_contains": ["VMware ESXi"],
-      "cert_issuer_contains": ["VMware"],
-      "confidence_weight": 1.5
+      "cert_issuer_contains": ["VMware"]
     },
+
     {
       "name": "Synology NAS",
       "category": "NAS",
-      "http_title_contains": ["Synology"],
-      "ports": [5000, 5001],
-      "confidence_weight": 1.5
+      "http_title_contains": ["Synology"]
     },
+
     {
-      "name": "Postfix Mail Server",
-      "category": "Mail Server",
-      "smtp_banner_contains": ["Postfix"],
-      "confidence_weight": 1.4
+      "name": "TrueNAS",
+      "category": "NAS",
+      "http_title_contains": ["TrueNAS"],
+      "server_contains": ["nginx"]
     },
+
     {
-      "name": "Dovecot Mail Server",
-      "category": "Mail Server",
-      "imap_banner_contains": ["Dovecot"],
-      "pop3_banner_contains": ["Dovecot"],
-      "confidence_weight": 1.4
-    },
-    {
-      "name": "OpenSSH Server",
-      "category": "Remote Access",
-      "ssh_banner_contains": ["OpenSSH"],
-      "confidence_weight": 0.7
-    },
-    {
-      "name": "Telnet Service",
-      "category": "Remote Access",
-      "telnet_banner_contains": ["Telnet"],
-      "confidence_weight": 0.5
-    },
-    {
-      "name": "FTP Service",
-      "category": "File Transfer",
-      "ftp_banner_contains": ["FTP"],
-      "confidence_weight": 0.5
-    },
-    {
-      "name": "Embedded Device",
-      "category": "IoT/Embedded",
-      "ports": [80, 8080],
-      "http_title_contains": ["Embedded", "IoT"],
-      "confidence_weight": 0.8
-    },
-    {
-      "name": "Generic Linux Server",
-      "category": "Server",
-      "os_guess": "Linux",
-      "ports": [22, 80],
-      "confidence_weight": 0.6
-    },
-    {
-      "name": "Generic Network Device",
+      "name": "MikroTik RouterOS",
       "category": "Network Device",
-      "ports": [22, 80],
-      "confidence_weight": 0.5
+      "http_title_contains": ["RouterOS"]
     },
+
     {
-      "name": "Generic Mail Server",
-      "category": "Mail Server",
-      "ports": [25, 110, 143],
-      "confidence_weight": 0.5
+      "name": "TP-Link Router",
+      "category": "Network Device",
+      "mac_vendor_contains": ["TP-Link"],
+      "http_title_contains": ["TP-Link"]
     },
+
     {
-      "name": "Generic Web Server",
-      "category": "Web Server",
-      "ports": [80, 443],
-      "confidence_weight": 0.5
+      "name": "GitLab",
+      "category": "DevOps",
+      "http_title_contains": ["GitLab"]
     },
+
     {
-      "name": "Generic Remote Access",
-      "category": "Remote Access",
-      "ports": [22, 23, 3389],
-      "confidence_weight": 0.5
+      "name": "Grafana",
+      "category": "Monitoring",
+      "http_title_contains": ["Grafana"]
     },
+
     {
-      "name": "Generic IoT/Embedded",
-      "category": "IoT/Embedded",
-      "ports": [80, 8080],
-      "confidence_weight": 0.5
+      "name": "Jenkins CI",
+      "category": "CI/CD",
+      "http_title_contains": ["Jenkins"]
     },
-    
+
     {
-      "name": "Generic Web Application",
-      "category": "Web Application",
-      "ports": [80, 443],
-      "confidence_weight": 0.5
+      "name": "Portainer",
+      "category": "Container Management",
+      "http_title_contains": ["Portainer"]
     },
+
     {
-      "name": "Generic Database Server",
-      "category": "Database Server",
-      "ports": [3306, 5432],
-      "confidence_weight": 0.5
+      "name": "Kubernetes API Server",
+      "category": "Container Platform",
+      "ports": [6443],
+      "cert_common_name_contains": ["kubernetes"]
     },
+
     {
-      "name": "Generic Application Server",
-      "category": "Application Server",
-      "ports": [8080, 8443],
-      "confidence_weight": 0.5
+      "name": "Redis Server",
+      "category": "Database",
+      "ports": [6379]
     },
+
     {
-      "name": "Generic Storage Device",
-      "category": "Storage Device",
-      "ports": [2049, 445],
-      "confidence_weight": 0.5
+      "name": "PostgreSQL Server",
+      "category": "Database",
+      "ports": [5432]
     },
+
     {
-      "name": "Generic Print Server",
-      "category": "Print Server",
-      "ports": [515, 631],
-      "confidence_weight": 0.5
+      "name": "MySQL / MariaDB",
+      "category": "Database",
+      "ports": [3306]
     },
+
     {
-      "name": "Generic Media Server",
-      "category": "Media Server",
-      "ports": [1900, 8200],
-      "confidence_weight": 0.5
+      "name": "MongoDB",
+      "category": "Database",
+      "ports": [27017]
     },
+
     {
-      "name": "Generic Backup Server",
-      "category": "Backup Server",
-      "ports": [873, 22],
-      "confidence_weight": 0.5
-    },
-    {
-      "name": "Generic Monitoring System",
-      "category": "Monitoring System",
-      "ports": [161, 162],
-      "confidence_weight": 0.5
-    },
-    {
-      "name": "Generic Directory Server",
-      "category": "Directory Server",
-      "ports": [389, 636],
-      "confidence_weight": 0.5
-    },
-    {
-      "name": "Generic Proxy Server",
-      "category": "Proxy Server",
-      "ports": [3128, 8080],
-      "confidence_weight": 0.5
-    },
-    {
-      "name": "Generic VPN Server",
-      "category": "VPN Server",
-      "ports": [1194, 1701],
-      "confidence_weight": 0.5
-    },
-    {
-      "name": "Generic VoIP Server",
-      "category": "VoIP Server",
-      "ports": [5060, 5061],
-      "confidence_weight": 0.5
-    },
-    {
-      "name": "Generic Collaboration Server",
-      "category": "Collaboration Server",
-      "ports": [443, 5222],
-      "confidence_weight": 0.5
-    },
-    {
-      "name": "Generic Development Server",
-      "category": "Development Server",
-      "ports": [8080, 8443],
-      "confidence_weight": 0.5
-    },
-    {
-      "name": "Generic Testing Server",
-      "category": "Testing Server",
-      "ports": [8080, 8443],
-      "confidence_weight": 0.5
-    },
-    {
-      "name": "Generic Staging Server",
-      "category": "Staging Server",
-      "ports": [8080, 8443],
-      "confidence_weight": 0.5
-    },
-    {
-      "name": "Generic Production Server",
-      "category": "Production Server",
-      "ports": [80, 443],
-      "confidence_weight": 0.5
-    },
-  {
-  "name": "Microsoft RD Gateway",
-  "category": "Remote Access",
-  "http_title_contains": ["RD Gateway"],
-  "server_contains": ["Microsoft-HTTPAPI"],
-  "ports": [443],
-  "confidence_weight": 1.5
-},{
-  "name": "pfSense Firewall",
-  "category": "Firewall",
-  "http_title_contains": ["pfSense"],
-  "server_contains": ["lighttpd"],
-  "ports": [443],
-  "confidence_weight": 1.6
-},{
-  "name": "Palo Alto Firewall",
-  "category": "Firewall",
-  "http_title_contains": ["Palo Alto Networks"],
-  "cert_common_name_contains": ["pan"],
-  "ports": [443],
-  "confidence_weight": 1.7
-},{
-  "name": "Check Point Firewall",
-  "category": "Firewall",
-  "http_title_contains": ["Check Point"],
-  "server_contains": ["Check Point"],
-  "ports": [443],
-  "confidence_weight": 1.7
-},{
-  "name": "F5 BIG-IP",
-  "category": "Load Balancer",
-  "http_title_contains": ["BIG-IP"],
-  "server_contains": ["BigIP"],
-  "ports": [443],
-  "confidence_weight": 1.6
-},{
-  "name": "Citrix NetScaler",
-  "category": "Load Balancer",
-  "http_title_contains": ["Citrix"],
-  "server_contains": ["NS-CACHE"],
-  "ports": [443],
-  "confidence_weight": 1.6
-},{
-  "name": "Aruba CX Switch",
-  "category": "Network Device",
-  "mac_vendor_contains": ["Aruba"],
-  "http_title_contains": ["ArubaOS"],
-  "ports": [80, 443],
-  "confidence_weight": 1.6
-},
-{
-  "name": "Dell iDRAC",
-  "category": "Management Interface",
-  "http_title_contains": ["iDRAC"],
-  "mac_vendor_contains": ["Dell"],
-  "ports": [443],
-  "confidence_weight": 1.7
-},{
-  "name": "Lenovo XClarity Controller",
-  "category": "Management Interface",
-  "http_title_contains": ["XClarity"],
-  "ports": [443],
-  "confidence_weight": 1.6
-},{
-  "name": "TrueNAS",
-  "category": "NAS",
-  "http_title_contains": ["TrueNAS"],
-  "server_contains": ["nginx"],
-  "ports": [80, 443],
-  "confidence_weight": 1.5
-},{
-  "name": "Kubernetes API Server",
-  "category": "Container Platform",
-  "ports": [6443],
-  "cert_common_name_contains": ["kubernetes"],
-  "confidence_weight": 1.6
-},{
-  "name": "Docker Remote API",
-  "category": "Container Runtime",
-  "ports": [2375, 2376],
-  "confidence_weight": 1.5
-},{
-  "name": "Redis Server",
-  "category": "Database",
-  "ports": [6379],
-  "confidence_weight": 1.3
-},{
-  "name": "Microsoft SQL Server",
-  "category": "Database",
-  "ports": [1433],
-  "confidence_weight": 1.4
-},{
-  "name": "PostgreSQL Server",
-  "category": "Database",
-  "ports": [5432],
-  "confidence_weight": 1.4
-},{
-  "name": "MySQL / MariaDB",
-  "category": "Database",
-  "ports": [3306],
-  "confidence_weight": 1.4
-},{
-  "name": "HAProxy",
-  "category": "Load Balancer",
-  "server_contains": ["HAProxy"],
-  "confidence_weight": 1.4
-},{
-  "name": "Versa SASE Device",
-  "category": "Firewall / SD-WAN",
-  "server_contains": ["Versa"],
-  "http_title_contains": ["Versa Networks"],
-  "confidence_weight": 1.7
-},
-{
-  "name": "Sophos Firewall",
-  "category": "Firewall",
-  "http_title_contains": ["Sophos Firewall"],
-  "ports": [4444, 443],
-  "confidence_weight": 1.7
-},
-{
-  "name": "WatchGuard Firewall",
-  "category": "Firewall",
-  "http_title_contains": ["WatchGuard"],
-  "ports": [8080, 443],
-  "confidence_weight": 1.6
-},
-{
-  "name": "SonicWall Firewall",
-  "category": "Firewall",
-  "http_title_contains": ["SonicWall"],
-  "ports": [4443, 443],
-  "confidence_weight": 1.7
-},
-{
-  "name": "Juniper SRX",
-  "category": "Firewall",
-  "http_title_contains": ["Juniper"],
-  "server_contains": ["Juniper"],
-  "ports": [80, 443],
-  "confidence_weight": 1.6
-},
-{
-  "name": "cPanel",
-  "category": "Web Hosting",
-  "ports": [2082, 2083],
-  "confidence_weight": 1.6
-},
-{
-  "name": "Plesk Panel",
-  "category": "Web Hosting",
-  "ports": [8443],
-  "http_title_contains": ["Plesk"],
-  "confidence_weight": 1.6
-},
-{
-  "name": "Jenkins CI",
-  "category": "CI/CD",
-  "http_title_contains": ["Jenkins"],
-  "ports": [8080],
-  "confidence_weight": 1.6
-},
-{
-  "name": "GitLab",
-  "category": "DevOps",
-  "http_title_contains": ["GitLab"],
-  "ports": [80, 443],
-  "confidence_weight": 1.6
-},
-{
-  "name": "Grafana",
-  "category": "Monitoring",
-  "http_title_contains": ["Grafana"],
-  "ports": [3000],
-  "confidence_weight": 1.6
-},
-{
-  "name": "Portainer",
-  "category": "Container Management",
-  "ports": [9000],
-  "http_title_contains": ["Portainer"],
-  "confidence_weight": 1.6
-},
-{
-  "name": "Rancher",
-  "category": "Container Platform",
-  "http_title_contains": ["Rancher"],
-  "ports": [80, 443],
-  "confidence_weight": 1.6
-},
-{
-  "name": "QNAP NAS",
-  "category": "NAS",
-  "http_title_contains": ["QNAP"],
-  "ports": [8080, 443],
-  "confidence_weight": 1.6
-},
-{
-  "name": "OpenMediaVault",
-  "category": "NAS",
-  "http_title_contains": ["OpenMediaVault"],
-  "ports": [80, 443],
-  "confidence_weight": 1.5
-},
-{
-  "name": "TP-Link Router",
-  "category": "Network Device",
-  "mac_vendor_contains": ["TP-Link"],
-  "ports": [80, 443],
-  "confidence_weight": 1.4
-},
-{
-  "name": "Netgear Router",
-  "category": "Network Device",
-  "mac_vendor_contains": ["Netgear"],
-  "ports": [80],
-  "confidence_weight": 1.4
-},
-{
-  "name": "MikroTik RouterOS",
-  "category": "Network Device",
-  "http_title_contains": ["RouterOS"],
-  "ports": [80, 8291],
-  "confidence_weight": 1.7
-},
-{
-  "name": "CUPS Print Server",
-  "category": "Print Server",
-  "ports": [631],
-  "server_contains": ["CUPS"],
-  "confidence_weight": 1.4
-},
-{
-  "name": "Zabbix Server",
-  "category": "Monitoring",
-  "http_title_contains": ["Zabbix"],
-  "ports": [80, 443],
-  "confidence_weight": 1.6
-},
-{
-  "name": "Prometheus",
-  "category": "Monitoring",
-  "http_title_contains": ["Prometheus"],
-  "ports": [9090],
-  "confidence_weight": 1.5
-},
-{
-  "name": "MongoDB",
-  "category": "Database",
-  "ports": [27017],
-  "confidence_weight": 1.3
-},
-{
-  "name": "Elasticsearch",
-  "category": "Database",
-  "ports": [9200],
-  "http_title_contains": ["Elastic"],
-  "confidence_weight": 1.5
-}
+      "name": "Elasticsearch",
+      "category": "Database",
+      "http_title_contains": ["Elastic"],
+      "ports": [9200]
+    }
   ]
 }

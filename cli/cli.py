@@ -9,6 +9,7 @@ import socket
 from typing import Dict
 
 from rich.console import Console
+
 from rich.progress import (
     Progress,
     SpinnerColumn,
@@ -138,7 +139,7 @@ def main() -> None:
     parser.add_argument("--parallel-subnets", type=int, default=3)
     parser.add_argument("--no-update-check", action="store_true")
     parser.add_argument("--version", action="version", version=f"NetScan {__version__}")
-
+    parser.add_argument("--debug", action="store_true", help="Enable debug mode")
     args = parser.parse_args()
 
     # -------------------------------------------------
@@ -231,7 +232,7 @@ def main() -> None:
     # Scan
     # -------------------------------------------------
 
-    scanner = NetworkScanner()
+    scanner = NetworkScanner(debug=args.debug)
 
     console.print(
         f"\n[bold cyan]Scanning {len(validated)} subnet(s) "

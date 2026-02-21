@@ -4,6 +4,11 @@ import os
 
 class FingerprintEngine:
 
+    STRONG_WEIGHT = 1.0
+    MEDIUM_WEIGHT = 0.5
+    WEAK_WEIGHT = 0.1
+    MIN_CONFIDENCE = 0.6
+
     def __init__(self, db_path=None):
 
         if db_path is None:
@@ -19,22 +24,18 @@ class FingerprintEngine:
             with open(db_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
 
-                # New structured format
                 if isinstance(data, dict) and "rules" in data:
                     self.database = data.get("rules", [])
                     self.metadata = data.get("metadata", {})
                     self.version = self.metadata.get("version", "unknown")
 
-                # Backward compatibility (old list-only format)
                 elif isinstance(data, list):
                     self.database = data
                     self.version = "legacy"
 
-        else:
-            print(f"[FingerprintEngine] Database not found: {db_path}")
-
         print(f"[FingerprintEngine] Loaded fingerprint rules: {len(self.database)}")
         print(f"[FingerprintEngine] DB Version: {self.version}")
+
     # -------------------------------------------------
     # Public API
     # -------------------------------------------------
@@ -43,147 +44,129 @@ class FingerprintEngine:
 
         matches = []
 
-        for entry in self.database:
-            score = self.evaluate(entry, host_data)
-
-            # Minimum threshold
-            if score >= 0.5:
-                matches.append({
-                    "device_type": entry.get("name"),
-                    "category": entry.get("category"),
-                    "os_guess": entry.get("os_guess"),
-                    "confidence": round(min(score, 1.0), 2)
-                })
+        for rule in self.database:
+            result = self.evaluate_rule(rule, host_data)
+            if result:
+                matches.append(result)
 
         matches.sort(key=lambda x: x["confidence"], reverse=True)
 
+        best = matches[0] if matches else None
+
+        if best and best["confidence"] < self.MIN_CONFIDENCE:
+            best = None
+
         return {
             "matches": matches,
-            "best_match": matches[0] if matches else None
+            "best_match": best
         }
 
     # -------------------------------------------------
-    # Rule Evaluation
+    # Enterprise Rule Evaluation
     # -------------------------------------------------
 
-    def evaluate(self, rule, host):
+    def evaluate_rule(self, rule, host):
 
-        score = 0.0
+        strong = 0
+        medium = 0
+        weak = 0
 
+        # Extract normalized host fields
         ports = host.get("ports", [])
+
         http80 = host.get("http_80") or {}
         http443 = host.get("http_443") or {}
 
-        title = (http80.get("title") or "") + " " + (http443.get("title") or "")
-        server = (http80.get("server") or "") + " " + (http443.get("server") or "")
+        title = ((http80.get("title") or "") + " " +
+                 (http443.get("title") or "")).lower()
+
+        server = ((http80.get("server") or "") + " " +
+                  (http443.get("server") or "")).lower()
+
         favicon_hash = http80.get("favicon_hash") or http443.get("favicon_hash")
 
         cert = http443.get("cert") or {}
-        cert_cn = cert.get("common_name") or ""
-        cert_issuer = cert.get("issuer") or ""
-        cert_san = " ".join(cert.get("san", []))
+        cert_cn = (cert.get("common_name") or "").lower()
+        cert_issuer = (cert.get("issuer") or "").lower()
 
-        ssh_banner = host.get("ssh_banner") or ""
-        smtp_banner = host.get("smtp_banner") or ""
-        ftp_banner = host.get("ftp_banner") or ""
-        pop3_banner = host.get("pop3_banner") or ""
-        imap_banner = host.get("imap_banner") or ""
+        ssh_banner = (host.get("ssh_banner") or "").lower()
+        smtp_banner = (host.get("smtp_banner") or "").lower()
+        ftp_banner = (host.get("ftp_banner") or "").lower()
 
-        mac_vendor = host.get("vendor") or ""
-        hostname = host.get("hostname") or ""
-
-        # Normalize
-        title = title.lower()
-        server = server.lower()
-        cert_cn = cert_cn.lower()
-        cert_issuer = cert_issuer.lower()
-        cert_san = cert_san.lower()
-        ssh_banner = ssh_banner.lower()
-        smtp_banner = smtp_banner.lower()
-        ftp_banner = ftp_banner.lower()
-        pop3_banner = pop3_banner.lower()
-        imap_banner = imap_banner.lower()
-        mac_vendor = mac_vendor.lower()
-        hostname = hostname.lower()
+        mac_vendor = (host.get("vendor") or "").lower()
+        hostname = (host.get("hostname") or "").lower()
 
         # -------------------------
-        # Strong Signals
+        # STRONG SIGNALS
         # -------------------------
 
-        # MAC Vendor (very strong for network devices)
-        for keyword in rule.get("mac_vendor_contains", []):
-            if keyword.lower() in mac_vendor:
-                score += 0.5
+        if any(k.lower() in title for k in rule.get("http_title_contains", [])):
+            strong += 1
 
-        # Server Header
-        for keyword in rule.get("server_contains", []):
-            if keyword.lower() in server:
-                score += 0.4
+        if any(k.lower() in cert_cn for k in rule.get("cert_common_name_contains", [])):
+            strong += 1
 
-        # HTTP Title
-        for keyword in rule.get("http_title_contains", []):
-            if keyword.lower() in title:
-                score += 0.4
+        if rule.get("favicon_hash") and favicon_hash == rule.get("favicon_hash"):
+            strong += 1
+
+        if any(k.lower() in ssh_banner for k in rule.get("ssh_banner_contains", [])):
+            strong += 1
 
         # -------------------------
-        # Medium Signals
+        # MEDIUM SIGNALS
         # -------------------------
 
-        # Ports
-        for p in rule.get("ports", []):
-            if p in ports:
-                score += 0.3
+        if any(k.lower() in server for k in rule.get("server_contains", [])):
+            medium += 1
 
-        # Certificate CN
-        for keyword in rule.get("cert_common_name_contains", []):
-            if keyword.lower() in cert_cn:
-                score += 0.3
+        if any(k.lower() in mac_vendor for k in rule.get("mac_vendor_contains", [])):
+            medium += 1
 
-        # Certificate Issuer
-        for keyword in rule.get("cert_issuer_contains", []):
-            if keyword.lower() in cert_issuer:
-                score += 0.2
+        if any(k.lower() in hostname for k in rule.get("hostname_contains", [])):
+            medium += 1
 
-        # Certificate SAN
-        for keyword in rule.get("cert_san_contains", []):
-            if keyword.lower() in cert_san:
-                score += 0.2
+        if any(k.lower() in cert_issuer for k in rule.get("cert_issuer_contains", [])):
+            medium += 1
 
         # -------------------------
-        # Banner Signals
+        # WEAK SIGNALS
         # -------------------------
 
-        banner_fields = [
-            ("ssh_banner_contains", ssh_banner),
-            ("smtp_banner_contains", smtp_banner),
-            ("ftp_banner_contains", ftp_banner),
-            ("pop3_banner_contains", pop3_banner),
-            ("imap_banner_contains", imap_banner),
-        ]
-
-        for field, value in banner_fields:
-            for keyword in rule.get(field, []):
-                if keyword.lower() in value:
-                    score += 0.3
+        if any(p in ports for p in rule.get("ports", [])):
+            weak += 1
 
         # -------------------------
-        # Favicon Hash (very strong)
+        # Compute Weighted Score
         # -------------------------
 
-        if rule.get("favicon_hash") and favicon_hash:
-            if rule["favicon_hash"] == favicon_hash:
-                score += 1.0
+        total_score = (
+            strong * self.STRONG_WEIGHT +
+            medium * self.MEDIUM_WEIGHT +
+            weak * self.WEAK_WEIGHT
+        )
 
-        # -------------------------
-        # Hostname match
-        # -------------------------
+        max_possible = (
+            len(rule.get("http_title_contains", [])) * self.STRONG_WEIGHT +
+            len(rule.get("cert_common_name_contains", [])) * self.STRONG_WEIGHT +
+            len(rule.get("ssh_banner_contains", [])) * self.STRONG_WEIGHT +
+            len(rule.get("server_contains", [])) * self.MEDIUM_WEIGHT +
+            len(rule.get("mac_vendor_contains", [])) * self.MEDIUM_WEIGHT +
+            len(rule.get("hostname_contains", [])) * self.MEDIUM_WEIGHT +
+            len(rule.get("ports", [])) * self.WEAK_WEIGHT
+        )
 
-        for keyword in rule.get("hostname_contains", []):
-            if keyword.lower() in hostname:
-                score += 0.3
+        if max_possible == 0:
+            return None
 
-        # Apply rule weight
-        weight = rule.get("confidence_weight", 1.0)
-        score *= weight
+        confidence = min(total_score / max_possible, 1.0)
 
-        return score
+        if confidence < 0.4:
+            return None
+
+        
+        return {
+            "device_type": rule.get("name"),
+            "category": rule.get("category"),
+            "os_guess": rule.get("os_guess"),
+            "confidence": round(confidence, 2)
+        }
