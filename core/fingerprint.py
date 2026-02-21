@@ -6,21 +6,35 @@ class FingerprintEngine:
 
     def __init__(self, db_path=None):
 
-        # Resolve default path relative to this file
         if db_path is None:
             base_dir = os.path.dirname(os.path.abspath(__file__))
             db_path = os.path.join(base_dir, "..", "fingerprints", "fingerprints.json")
             db_path = os.path.abspath(db_path)
 
         self.database = []
+        self.metadata = {}
+        self.version = "unknown"
 
         if os.path.exists(db_path):
             with open(db_path, "r", encoding="utf-8") as f:
-                self.database = json.load(f)
+                data = json.load(f)
+
+                # New structured format
+                if isinstance(data, dict) and "rules" in data:
+                    self.database = data.get("rules", [])
+                    self.metadata = data.get("metadata", {})
+                    self.version = self.metadata.get("version", "unknown")
+
+                # Backward compatibility (old list-only format)
+                elif isinstance(data, list):
+                    self.database = data
+                    self.version = "legacy"
+
         else:
             print(f"[FingerprintEngine] Database not found: {db_path}")
 
         print(f"[FingerprintEngine] Loaded fingerprint rules: {len(self.database)}")
+        print(f"[FingerprintEngine] DB Version: {self.version}")
     # -------------------------------------------------
     # Public API
     # -------------------------------------------------
