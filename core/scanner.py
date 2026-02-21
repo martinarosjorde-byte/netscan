@@ -13,7 +13,7 @@ import os
 from core.fingerprint import FingerprintEngine
 
 CORE_PORTS = [
-    22, 80, 443, 25, 445, 3389
+    21, 23, 110, 143, 587, 53, 139, 5900, 8080, 8443, 8006
 ]
 
 IS_WINDOWS = platform.system().lower() == "windows"
@@ -350,8 +350,7 @@ class NetworkScanner:
                 "mac": arp_entries.get(ip),
                 "vendor": None,
                 "ports": [],
-                "http_80": None,
-                "http_443": None,
+                "http_services": {},  
                 "ssh_banner": None,
                 "smtp_banner": None,
                 "ftp_banner": None,
@@ -424,10 +423,12 @@ class NetworkScanner:
         for ip in results:
             ports = results[ip]["ports"]
 
-            if 80 in ports:
-                banner_tasks.append(self._assign_http(ip, 80, results))
-            if 443 in ports:
-                banner_tasks.append(self._assign_http(ip, 443, results))
+            HTTP_PORTS = {80, 8080}
+            HTTPS_PORTS = {443, 8443, 9443, 10443, 8006}
+
+            for port in ports:
+                if port in HTTP_PORTS or port in HTTPS_PORTS:
+                    banner_tasks.append(self._assign_http(ip, port, results))
 
             if 22 in ports:
                 banner_tasks.append(self._assign_banner(ip, 22, "ssh_banner", results))
@@ -509,7 +510,8 @@ class NetworkScanner:
 
     async def _assign_http(self, ip, port, results):
         data = await self.grab_http_banner(ip, port)
-        results[ip][f"http_{port}"] = data
+        if data:
+            results[ip]["http_services"][port] = data
 
     async def _assign_banner(self, ip, port, field, results):
         data = await self.grab_tcp_banner(ip, port)
@@ -522,19 +524,25 @@ class NetworkScanner:
         ports = host.get("ports", [])
         vendor = (host.get("vendor") or "").lower()
 
-        http80 = host.get("http_80") or {}
-        http443 = host.get("http_443") or {}
+        # Aggregate HTTP server headers (NEW MODEL)
+        http_services = host.get("http_services", {})
+        server = ""
 
-        server = (
-            (http80.get("server") or "") + " " +
-            (http443.get("server") or "")
-        ).lower()
+        for svc in http_services.values():
+            server += (svc.get("server") or "") + " "
 
+        server = server.lower()
+
+        # -------------------------
         # Windows indicators
+        # -------------------------
+
         if 445 in ports:
             score += 3
+        if 139 in ports:
+            score += 6
         if 3389 in ports:
-            score += 3
+            score += 6
         if "microsoft-iis" in server:
             score += 4
         if 5985 in ports or 5986 in ports:
@@ -543,7 +551,10 @@ class NetworkScanner:
         if score >= 4:
             return {"os": "Windows", "confidence": min(score / 10, 1.0)}
 
+        # -------------------------
         # Linux indicators
+        # -------------------------
+
         linux_score = 0
 
         if 22 in ports and 445 not in ports:
@@ -558,9 +569,26 @@ class NetworkScanner:
         if linux_score >= 3:
             return {"os": "Linux", "confidence": min(linux_score / 8, 1.0)}
 
+        # -------------------------
         # Network OS
-        if any(x in vendor for x in ["cisco", "aruba", "juniper", "mikrotik"]):
-            return {"os": "Network OS", "confidence": 0.9}
+        # -------------------------
+
+        NETWORK_VENDORS = [
+            "cisco",
+            "aruba",
+            "juniper",
+            "mikrotik",
+            "tp-link",
+            "asustek",
+            "versanet"
+        ]
+
+        if any(v in vendor for v in NETWORK_VENDORS):
+            return {"os": "Network OS", "confidence": 0.95}
+
+        # -------------------------
+        # Fallback
+        # -------------------------
 
         return {"os": "Unknown", "confidence": 0.2}
     
@@ -582,6 +610,18 @@ class NetworkScanner:
         # Hypervisor
         if 8006 in ports:
             return "Hypervisor"
+
+        # Smart TV
+        if "lgelectr" in vendor:
+            return "Smart TV"
+
+        # Automotive
+        if "tesla" in vendor:
+            return "Vehicle"
+
+        # SD-WAN
+        if "versanet" in vendor:
+            return "SD-WAN Device"
 
         # Management interfaces
         if any(x in vendor for x in ["dell", "hewlett", "lenovo"]) and 443 in ports:

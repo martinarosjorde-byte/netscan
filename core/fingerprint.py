@@ -71,21 +71,32 @@ class FingerprintEngine:
         medium = 0
         weak = 0
 
-        # Extract normalized host fields
+            # Extract normalized host fields
         ports = host.get("ports", [])
+        
+        # -------------------------
+        # HTTP Aggregation (NEW MODEL)
+        # -------------------------
 
-        http80 = host.get("http_80") or {}
-        http443 = host.get("http_443") or {}
+        http_services = host.get("http_services", {})
+        title = ""
+        server = ""
+        favicon_hash = None
+        cert = {}
 
-        title = ((http80.get("title") or "") + " " +
-                 (http443.get("title") or "")).lower()
+        for svc in http_services.values():
+            title += (svc.get("title") or "") + " "
+            server += (svc.get("server") or "") + " "
 
-        server = ((http80.get("server") or "") + " " +
-                  (http443.get("server") or "")).lower()
+            if svc.get("favicon_hash"):
+                favicon_hash = svc.get("favicon_hash")
 
-        favicon_hash = http80.get("favicon_hash") or http443.get("favicon_hash")
+            if svc.get("cert"):
+                cert = svc.get("cert")
 
-        cert = http443.get("cert") or {}
+        title = title.lower()
+        server = server.lower()
+
         cert_cn = (cert.get("common_name") or "").lower()
         cert_issuer = (cert.get("issuer") or "").lower()
 
@@ -149,9 +160,13 @@ class FingerprintEngine:
             len(rule.get("http_title_contains", [])) * self.STRONG_WEIGHT +
             len(rule.get("cert_common_name_contains", [])) * self.STRONG_WEIGHT +
             len(rule.get("ssh_banner_contains", [])) * self.STRONG_WEIGHT +
+            (1 if rule.get("favicon_hash") else 0) * self.STRONG_WEIGHT +
+
             len(rule.get("server_contains", [])) * self.MEDIUM_WEIGHT +
             len(rule.get("mac_vendor_contains", [])) * self.MEDIUM_WEIGHT +
             len(rule.get("hostname_contains", [])) * self.MEDIUM_WEIGHT +
+            len(rule.get("cert_issuer_contains", [])) * self.MEDIUM_WEIGHT +
+
             len(rule.get("ports", [])) * self.WEAK_WEIGHT
         )
 

@@ -147,14 +147,18 @@ def render_table(subnet, results):
         # HTTP
         # -----------------------------
         if show_columns["http"]:
-            http_data = data.get("http_443") or data.get("http_80") or {}
-            status = http_data.get("status") or ""
-            server = http_data.get("server") or ""
-            title = http_data.get("title") or ""
+            http_entries = []
 
-            http_parts = [p for p in [status, server, title] if p]
-            row.append(" | ".join(http_parts))
+            for port, svc in sorted(data.get("http_services", {}).items()):
+                status = svc.get("status") or ""
+                server = svc.get("server") or ""
+                title = svc.get("title") or ""
 
+                parts = [p for p in [status, server, title] if p]
+                if parts:
+                    http_entries.append(f"{port}: " + " | ".join(parts))
+
+            row.append("\n".join(http_entries))
         # -----------------------------
         # Certificate
         # -----------------------------
@@ -180,9 +184,9 @@ def render_table(subnet, results):
         if show_columns["imap"]:
             row.append(data.get("imap_banner") or "")
 
-        # -----------------------------
-        # Services Layer
-        # -----------------------------
+    # -----------------------------
+    # Services Layer
+    # -----------------------------
         if show_columns["services"]:
             services = []
 
@@ -202,10 +206,10 @@ def render_table(subnet, results):
 
                 services.append(service_str)
 
-        row.append("\n".join(services))
+            row.append("\n".join(services))
 
         table.add_row(*row)
-
+    print("ROW LENGTH:", len(row), "COLUMNS:", len(table.columns))  
     console.print(table)
 
 
