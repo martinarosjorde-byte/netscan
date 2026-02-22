@@ -1,20 +1,25 @@
 import asyncio
 import ipaddress
+from multiprocessing.util import debug
 import socket
 import subprocess
 import ssl
 import re
 import base64
+from urllib import response
 import mmh3
 import manuf
 import platform
 import sys
 import os
+import aiohttp
+from aiohttp import ClientTimeout
+from rich import text
+from core.http_scanner import HTTPScanner
 from core.fingerprint import FingerprintEngine
 
-CORE_PORTS = [
-    21, 23, 110, 143, 587, 53, 139, 5900, 8080, 8443, 8006
-]
+CORE_PORTS = [21, 23, 110, 143, 587, 53, 139, 10443, 5900, 8080, 8443, 8006]
+HTTPS_PORTS = {443, 8443, 9443, 10443, 8006}
 
 IS_WINDOWS = platform.system().lower() == "windows"
 
@@ -28,8 +33,9 @@ class NetworkScanner:
         self.max_concurrent = max_concurrent
         self.hostname_semaphore = asyncio.Semaphore(50)
         self.banner_semaphore = asyncio.Semaphore(100)
-        self.fingerprint_engine = FingerprintEngine()
-  
+        self.fingerprint_engine = FingerprintEngine(debug=debug)
+        self.http_scanner = HTTPScanner(debug=debug)
+        
         db_ports = self._extract_ports_from_fingerprint_db()
         if ports:
             self.ports = sorted(set(ports))
@@ -162,113 +168,7 @@ class NetworkScanner:
             except:
                 return None
 
-    # -------------------------------------------------
-    # HTTP / HTTPS
-    # -------------------------------------------------
-
-    async def grab_http_banner(self, ip, port):
-        async with self.banner_semaphore:
-            try:
-                ssl_ctx = None
-                cert_info = None
-                favicon_hash = None
-
-                if port == 443:
-                    ssl_ctx = ssl.create_default_context()
-                    ssl_ctx.check_hostname = False
-                    ssl_ctx.verify_mode = ssl.CERT_NONE
-
-                reader, writer = await asyncio.wait_for(
-                    asyncio.open_connection(ip, port, ssl=ssl_ctx),
-                    timeout=3
-                )
-
-                # TLS cert
-                if port == 443:
-                    ssl_obj = writer.get_extra_info("ssl_object")
-                    if ssl_obj:
-                        cert = ssl_obj.getpeercert()
-                        if cert:
-                            subject = dict(x[0] for x in cert.get("subject", []))
-                            issuer = dict(x[0] for x in cert.get("issuer", []))
-
-                            cert_info = {
-                                "common_name": subject.get("commonName"),
-                                "issuer": issuer.get("commonName"),
-                                "expires": cert.get("notAfter"),
-                            }
-
-                request = f"GET / HTTP/1.1\r\nHost: {ip}\r\nConnection: close\r\n\r\n"
-                writer.write(request.encode())
-                await writer.drain()
-
-                data = await asyncio.wait_for(reader.read(16384), timeout=3)
-
-                writer.close()
-                await writer.wait_closed()
-
-                response = data.decode(errors="ignore")
-                lines = response.split("\r\n")
-
-                status_code = None
-                if lines and "HTTP/" in lines[0]:
-                    parts = lines[0].split()
-                    if len(parts) >= 2:
-                        status_code = parts[1]
-
-                headers = {}
-                for line in lines[1:]:
-                    if not line:
-                        break
-                    if ":" in line:
-                        key, value = line.split(":", 1)
-                        headers[key.strip().lower()] = value.strip()
-
-                server = headers.get("server")
-                location = headers.get("location")
-
-                title = None
-                match = re.search(r"<title>(.*?)</title>", response, re.IGNORECASE | re.DOTALL)
-                if match:
-                    title = re.sub(r"\s+", " ", match.group(1)).strip()
-
-                # Favicon hash
-                try:
-                    reader2, writer2 = await asyncio.wait_for(
-                        asyncio.open_connection(ip, port, ssl=ssl_ctx),
-                        timeout=3
-                    )
-
-                    favicon_request = f"GET /favicon.ico HTTP/1.1\r\nHost: {ip}\r\nConnection: close\r\n\r\n"
-                    writer2.write(favicon_request.encode())
-                    await writer2.drain()
-
-                    favicon_data = await asyncio.wait_for(reader2.read(32768), timeout=3)
-
-                    writer2.close()
-                    await writer2.wait_closed()
-
-                    if b"\r\n\r\n" in favicon_data:
-                        body = favicon_data.split(b"\r\n\r\n", 1)[1]
-                        if body:
-                            encoded = base64.b64encode(body)
-                            favicon_hash = mmh3.hash(encoded)
-                except:
-                    pass
-
-                return {
-                    "server": server,
-                    "title": title,
-                    "status": status_code,
-                    "redirect": location,
-                    "headers": headers,
-                    "cert": cert_info,
-                    "favicon_hash": favicon_hash
-                }
-
-            except:
-                return None
-
+        
     # -------------------------------------------------
     # Generic TCP Banner
     # -------------------------------------------------
@@ -317,12 +217,13 @@ class NetworkScanner:
 
             if ip_obj.is_multicast or ip_obj.is_loopback:
                 continue
-            if ip_obj == network.network_address:
-                continue
-            if ip_obj == network.broadcast_address:
-                continue
-            if arp_entries.get(ip, "").lower() == "ff:ff:ff:ff:ff:ff":
-                continue
+
+            # Skip network/broadcast only if prefix < 31
+            if network.prefixlen < 31:
+                if ip_obj == network.network_address:
+                    continue
+                if ip_obj == network.broadcast_address:
+                    continue
 
             cleaned.append(ip)
 
@@ -509,7 +410,7 @@ class NetworkScanner:
 ##
 
     async def _assign_http(self, ip, port, results):
-        data = await self.grab_http_banner(ip, port)
+        data = await self.http_scanner.scan(ip, port)
         if data:
             results[ip]["http_services"][port] = data
 

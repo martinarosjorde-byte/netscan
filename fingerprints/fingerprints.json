@@ -216,6 +216,34 @@
       "ports": [27017]
     },
 
+  {
+    "name": "OpenWrt",
+    "category": "Network Device",
+    "os_guess": "Network OS",
+    "http_title_contains": ["OpenWrt", "LuCI"],
+    "ssh_banner_contains": ["dropbear"],
+    "server_contains": ["uhttpd"],
+    "ports": [22, 53, 80, 443],
+    "favicon_hash": -1491699252
+
+  },
+
+
+{
+    "name": "HPE Switch",
+    "category": "Network Device",
+    "os_guess": "Network OS",
+    "ports": [80, 443],
+    "favicon_hash": -1181890616
+  },  
+{
+    "name": "ASUS router",
+    "category": "Network Device",
+    "os_guess": "Network OS",
+    "http_title_contains": ["ASUS"],
+    "ports": [80, 443],
+    "favicon_hash": -1982635535
+  },
     {
       "name": "Elasticsearch",
       "category": "Database",

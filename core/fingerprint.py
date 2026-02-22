@@ -9,7 +9,9 @@ class FingerprintEngine:
     WEAK_WEIGHT = 0.1
     MIN_CONFIDENCE = 0.6
 
-    def __init__(self, db_path=None):
+    def __init__(self, db_path=None, debug=False):
+
+        self.debug = debug
 
         if db_path is None:
             base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -107,6 +109,11 @@ class FingerprintEngine:
         mac_vendor = (host.get("vendor") or "").lower()
         hostname = (host.get("hostname") or "").lower()
 
+        if self.debug and "openwrt" in title:
+            print("[DEBUG][FP] Title seen:", title)
+            print("[DEBUG][FP] Rule title match list:", rule.get("http_title_contains"))
+
+
         # -------------------------
         # STRONG SIGNALS
         # -------------------------
@@ -160,13 +167,11 @@ class FingerprintEngine:
             len(rule.get("http_title_contains", [])) * self.STRONG_WEIGHT +
             len(rule.get("cert_common_name_contains", [])) * self.STRONG_WEIGHT +
             len(rule.get("ssh_banner_contains", [])) * self.STRONG_WEIGHT +
-            (1 if rule.get("favicon_hash") else 0) * self.STRONG_WEIGHT +
-
+            (1 * self.STRONG_WEIGHT if rule.get("favicon_hash") is not None else 0) + 
             len(rule.get("server_contains", [])) * self.MEDIUM_WEIGHT +
             len(rule.get("mac_vendor_contains", [])) * self.MEDIUM_WEIGHT +
             len(rule.get("hostname_contains", [])) * self.MEDIUM_WEIGHT +
-            len(rule.get("cert_issuer_contains", [])) * self.MEDIUM_WEIGHT +
-
+            len(rule.get("cert_issuer_contains", [])) * self.MEDIUM_WEIGHT +  
             len(rule.get("ports", [])) * self.WEAK_WEIGHT
         )
 

@@ -10,11 +10,24 @@ console = Console()
 # -------------------------------------------------
 # Table Renderer
 # -------------------------------------------------
-
 def render_table(subnet, results):
 
     if not results:
         return
+
+    def _has_http_services(d: dict) -> bool:
+        hs = d.get("http_services") or {}
+        return isinstance(hs, dict) and len(hs) > 0
+
+    def _has_any_cert(d: dict) -> bool:
+        hs = d.get("http_services") or {}
+        if not isinstance(hs, dict):
+            return False
+        for svc in hs.values():
+            cert = (svc or {}).get("cert") or {}
+            if isinstance(cert, dict) and cert.get("common_name"):
+                return True
+        return False
 
     # -----------------------------
     # Determine dynamic columns
@@ -24,11 +37,9 @@ def render_table(subnet, results):
         "mac": any(d.get("mac") for d in results.values()),
         "vendor": any(d.get("vendor") for d in results.values()),
         "ports": any(d.get("ports") for d in results.values()),
-        "http": any(d.get("http_80") or d.get("http_443") for d in results.values()),
-        "cert": any(
-            (d.get("http_443") and d["http_443"].get("cert"))
-            for d in results.values()
-        ),
+        # ✅ NEW MODEL: http_services
+        "http": any(_has_http_services(d) for d in results.values()),
+        "cert": any(_has_any_cert(d) for d in results.values()),
         "ssh": any(d.get("ssh_banner") for d in results.values()),
         "smtp": any(d.get("smtp_banner") for d in results.values()),
         "ftp": any(d.get("ftp_banner") for d in results.values()),
@@ -48,7 +59,6 @@ def render_table(subnet, results):
     # -----------------------------
     # Column Order (clean layout)
     # -----------------------------
-
     table.add_column("IP", style="cyan")
 
     if show_columns["hostname"]:
@@ -96,7 +106,6 @@ def render_table(subnet, results):
     # -----------------------------
     # Build Rows
     # -----------------------------
-
     for ip in sorted(results.keys(), key=lambda x: ipaddress.ip_address(x)):
 
         data = results[ip]
@@ -144,27 +153,36 @@ def render_table(subnet, results):
             row.append(ports)
 
         # -----------------------------
-        # HTTP
+        # HTTP (NEW MODEL: http_services)
         # -----------------------------
         if show_columns["http"]:
             http_entries = []
-
-            for port, svc in sorted(data.get("http_services", {}).items()):
+            for port, svc in sorted((data.get("http_services") or {}).items()):
+                if not isinstance(svc, dict):
+                    continue
                 status = svc.get("status") or ""
                 server = svc.get("server") or ""
                 title = svc.get("title") or ""
-
-                parts = [p for p in [status, server, title] if p]
+                parts = [str(p) for p in [status, server, title] if p]
                 if parts:
                     http_entries.append(f"{port}: " + " | ".join(parts))
-
             row.append("\n".join(http_entries))
+
         # -----------------------------
-        # Certificate
+        # Certificate (NEW MODEL: http_services[*].cert)
         # -----------------------------
         if show_columns["cert"]:
-            cert = (data.get("http_443") or {}).get("cert") or {}
-            row.append(cert.get("common_name") or "")
+            cn_list = []
+            for port, svc in sorted((data.get("http_services") or {}).items()):
+                if not isinstance(svc, dict):
+                    continue
+                cert = (svc.get("cert") or {})
+                if not isinstance(cert, dict):
+                    continue
+                cn = cert.get("common_name")
+                if cn:
+                    cn_list.append(f"{port}: {cn}")
+            row.append("\n".join(cn_list))
 
         # -----------------------------
         # Banners
@@ -184,14 +202,14 @@ def render_table(subnet, results):
         if show_columns["imap"]:
             row.append(data.get("imap_banner") or "")
 
-    # -----------------------------
-    # Services Layer
-    # -----------------------------
+        # -----------------------------
+        # Services Layer
+        # -----------------------------
         if show_columns["services"]:
             services = []
 
             for s in data.get("services", []):
-                name = s.get("name")  # ✅ correct key
+                name = s.get("name")  # correct key
                 conf = s.get("confidence", 0)
 
                 if not name:
@@ -209,14 +227,13 @@ def render_table(subnet, results):
             row.append("\n".join(services))
 
         table.add_row(*row)
-    print("ROW LENGTH:", len(row), "COLUMNS:", len(table.columns))  
+
     console.print(table)
 
 
 # -------------------------------------------------
 # Summary
 # -------------------------------------------------
-
 def render_summary(results):
 
     total_hosts = len(results)
