@@ -1,7 +1,7 @@
 {
   "metadata": {
     "name": "NetScan Fingerprint Database",
-    "version": "2.0.0",
+    "version": "2.2.0",
     "last_updated": "2026-02-21",
     "author": "Humbug Software",
     "description": "Enterprise-grade high-signal fingerprint database for NetScan."
