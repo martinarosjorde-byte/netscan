@@ -11,7 +11,6 @@ from pathlib import Path
 from typing import Dict
 
 from rich.console import Console
-
 from rich.progress import (
     Progress,
     SpinnerColumn,
@@ -29,10 +28,10 @@ from version import __author__, __company__, __version__
 
 console = Console()
 
-
 # -------------------------------------------------
 # Banner
 # -------------------------------------------------
+
 def print_banner(update_message=None):
     logo = [
         r" _   _      _   _____                 ",
@@ -73,11 +72,11 @@ def print_banner(update_message=None):
         console.print()
 
 
-def safe_input(prompt: str, default: str = "n") -> str:
-    """Like input() but returns `default` if the user hits Ctrl+C.
+# -------------------------------------------------
+# Helpers
+# -------------------------------------------------
 
-    Returns the lower-cased string.
-    """
+def safe_input(prompt: str, default: str = "n") -> str:
     try:
         return input(prompt).lower()
     except KeyboardInterrupt:
@@ -85,9 +84,6 @@ def safe_input(prompt: str, default: str = "n") -> str:
         return default
 
 
-# -------------------------------------------------
-# Local subnet detection
-# -------------------------------------------------
 def suggest_local_subnet() -> str | None:
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -101,8 +97,48 @@ def suggest_local_subnet() -> str | None:
 
 
 # -------------------------------------------------
-# Parallel subnet scanning
+# Fingerprint DB Path Handling
 # -------------------------------------------------
+
+def get_fingerprint_db_path() -> Path:
+    """
+    Frozen EXE:
+        Use ProgramData (writable, survives upgrades)
+    Dev/script mode:
+        Use project fingerprints/fingerprints.json
+    """
+    if getattr(sys, "frozen", False):
+        program_data = Path(os.environ.get("PROGRAMDATA", r"C:\ProgramData"))
+        return program_data / "NetScan" / "fingerprints.json"
+
+    project_root = Path(__file__).resolve().parent.parent
+    return project_root / "fingerprints" / "fingerprints.json"
+
+
+def seed_fingerprint_db_if_missing(target_db: Path) -> None:
+    """
+    If ProgramData DB is missing, copy the shipped default DB from install folder.
+    Only applies to frozen EXE.
+    """
+    if target_db.exists():
+        return
+
+    if not getattr(sys, "frozen", False):
+        return
+
+    target_db.parent.mkdir(parents=True, exist_ok=True)
+
+    install_dir = Path(sys.executable).parent
+    bundled_db = install_dir / "fingerprints" / "fingerprints.json"
+
+    if bundled_db.exists():
+        shutil.copyfile(bundled_db, target_db)
+
+
+# -------------------------------------------------
+# Parallel Subnet Scanning
+# -------------------------------------------------
+
 async def scan_all_subnets_parallel(
     subnets: list[str],
     scanner: NetworkScanner,
@@ -140,6 +176,7 @@ async def scan_all_subnets_parallel(
 # -------------------------------------------------
 # Main
 # -------------------------------------------------
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="NetScan - Network Scanner",
@@ -153,18 +190,13 @@ def main() -> None:
     parser.add_argument("--parallel-subnets", type=int, default=3)
     parser.add_argument("--no-update-check", action="store_true")
     parser.add_argument("--version", action="version", version=f"NetScan {__version__}")
-    parser.add_argument("--debug", action="store_true", help="Enable debug mode")
+    parser.add_argument("--debug", action="store_true")
     args = parser.parse_args()
-
-    # -------------------------------------------------
-    # Update checks
-    # -------------------------------------------------
 
     update_message = None
 
     if not args.no_update_check:
         app_update = check_for_updates()
-
         if app_update["status"] == "outdated":
             update_message = f"New version available: {app_update['latest']}"
         elif app_update["status"] == "latest":
@@ -172,7 +204,7 @@ def main() -> None:
         else:
             update_message = "Update check skipped (offline or blocked)"
 
-    # Fingerprint DB path
+    # Fingerprint DB handling
     db_path = get_fingerprint_db_path()
     seed_fingerprint_db_if_missing(db_path)
 
@@ -180,8 +212,7 @@ def main() -> None:
 
     if not db_updater.exists():
         console.print(f"[yellow]Fingerprint DB not found at: {db_path}[/yellow]")
-        choice = safe_input("Download latest fingerprint DB now? (y/n): ", default="n")
-
+        choice = safe_input("Download latest fingerprint DB now? (y/n): ")
         if choice == "y":
             if db_updater.download():
                 update_message = "Fingerprint DB downloaded."
@@ -189,63 +220,10 @@ def main() -> None:
                 update_message = "Fingerprint DB download failed."
     else:
         local_version = db_updater.get_local_version()
-        remote_version = db_updater.get_remote_version()
+        if local_version:
+            update_message = f"Fingerprint DB version {local_version}"
 
-        if remote_version and db_updater.is_newer(local_version, remote_version):
-            console.print(
-                f"[yellow]New fingerprint DB available ({remote_version}). "
-                f"You have {local_version}.[/yellow]"
-            )
-
-            choice = safe_input("Update fingerprint DB now? (y/n): ", default="n")
-            if choice == "y":
-                if db_updater.download():
-                    update_message = f"Fingerprint DB updated to {remote_version}."
-                else:
-                    update_message = "Fingerprint DB update failed."
-        else:
-            if local_version:
-                update_message = f"Fingerprint DB version {local_version}"
-    
     print_banner(update_message)
-
-
-def get_fingerprint_db_path() -> Path:
-    """
-    - Frozen EXE: use ProgramData (writable, survives upgrades)
-    - Script/dev: use repo fingerprints/fingerprints.json
-    """
-    if getattr(sys, "frozen", False):
-        program_data = Path(os.environ.get("PROGRAMDATA", r"C:\ProgramData"))
-        return program_data / "NetScan" / "fingerprints.json"
-
-    # dev/script mode: cli/cli.py -> go up to project root
-    project_root = Path(__file__).resolve().parent.parent
-    return project_root / "fingerprints" / "fingerprints.json"
-
-
-def seed_fingerprint_db_if_missing(target_db: Path) -> None:
-    """
-    If ProgramData DB is missing, copy the shipped default DB from the install folder.
-    For dev/script mode we don't create/overwrite anything.
-    """
-    if target_db.exists():
-        return
-
-    if not getattr(sys, "frozen", False):
-        return  # dev: if missing, we want to prompt/download instead
-
-    # Ensure ProgramData\NetScan exists
-    target_db.parent.mkdir(parents=True, exist_ok=True)
-
-    # The installer should ship a default DB here:
-    #   C:\Program Files\NetScan\fingerprints\fingerprints.json
-    install_dir = Path(sys.executable).parent
-    bundled_db = install_dir / "fingerprints" / "fingerprints.json"
-
-    if bundled_db.exists():
-        shutil.copyfile(bundled_db, target_db)
-
 
     # -------------------------------------------------
     # Determine subnets
@@ -320,7 +298,4 @@ if __name__ == "__main__":
         main()
     except KeyboardInterrupt:
         console.print("\n[red]Interrupted by user. Exiting.[/red]")
-        try:
-            sys.exit(0)
-        except SystemExit:
-            pass
+        sys.exit(0)
