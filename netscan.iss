@@ -13,12 +13,18 @@ PrivilegesRequired=admin
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 
+[Dirs]
+Name: "{commonappdata}\NetScan"
+
 [Files]
 Source: "dist\netscan\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs
+
+; Default DB in install folder
 Source: "fingerprints\fingerprints.json"; DestDir: "{app}\fingerprints"; Flags: onlyifdoesntexist
 
-[Dirs]
-Name: "{app}\fingerprints"
+; ALSO seed ProgramData (this is what EXE actually uses)
+Source: "fingerprints\fingerprints.json"; DestDir: "{commonappdata}\NetScan"; Flags: onlyifdoesntexist
+
 
 [Icons]
 Name: "{group}\NetScan"; Filename: "{app}\netscan.exe"
