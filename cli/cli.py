@@ -7,6 +7,7 @@ import os
 import shutil
 import socket
 import sys
+from pathlib import Path
 from typing import Dict
 
 from rich.console import Console
@@ -172,25 +173,10 @@ def main() -> None:
             update_message = "Update check skipped (offline or blocked)"
 
     # Fingerprint DB path
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    db_path = os.path.abspath(
-        os.path.join(base_dir, "..", "fingerprints", "fingerprints.json")
-    )
+    db_path = get_fingerprint_db_path()
+    seed_fingerprint_db_if_missing(db_path)
 
-    # If the packaged fingerprint DB isn't present, check the current
-    # working directory for a developer/runtime copy and use that if found.
-    if not os.path.exists(db_path):
-        cwd = os.getcwd()
-        alt1 = os.path.abspath(os.path.join(cwd, "fingerprints", "fingerprints.json"))
-        alt2 = os.path.abspath(os.path.join(cwd, "fingerprints.json"))
-        if os.path.exists(alt1):
-            console.print(f"[yellow]Fingerprint DB not found at: {db_path} - using: {alt1}[/yellow]")
-            db_path = alt1
-        elif os.path.exists(alt2):
-            console.print(f"[yellow]Fingerprint DB not found at: {db_path} - using: {alt2}[/yellow]")
-            db_path = alt2
-
-    db_updater = FingerprintDBUpdater(db_path)
+    db_updater = FingerprintDBUpdater(str(db_path))
 
     if not db_updater.exists():
         console.print(f"[yellow]Fingerprint DB not found at: {db_path}[/yellow]")
@@ -222,6 +208,44 @@ def main() -> None:
                 update_message = f"Fingerprint DB version {local_version}"
     
     print_banner(update_message)
+
+
+def get_fingerprint_db_path() -> Path:
+    """
+    - Frozen EXE: use ProgramData (writable, survives upgrades)
+    - Script/dev: use repo fingerprints/fingerprints.json
+    """
+    if getattr(sys, "frozen", False):
+        program_data = Path(os.environ.get("PROGRAMDATA", r"C:\ProgramData"))
+        return program_data / "NetScan" / "fingerprints.json"
+
+    # dev/script mode: cli/cli.py -> go up to project root
+    project_root = Path(__file__).resolve().parent.parent
+    return project_root / "fingerprints" / "fingerprints.json"
+
+
+def seed_fingerprint_db_if_missing(target_db: Path) -> None:
+    """
+    If ProgramData DB is missing, copy the shipped default DB from the install folder.
+    For dev/script mode we don't create/overwrite anything.
+    """
+    if target_db.exists():
+        return
+
+    if not getattr(sys, "frozen", False):
+        return  # dev: if missing, we want to prompt/download instead
+
+    # Ensure ProgramData\NetScan exists
+    target_db.parent.mkdir(parents=True, exist_ok=True)
+
+    # The installer should ship a default DB here:
+    #   C:\Program Files\NetScan\fingerprints\fingerprints.json
+    install_dir = Path(sys.executable).parent
+    bundled_db = install_dir / "fingerprints" / "fingerprints.json"
+
+    if bundled_db.exists():
+        shutil.copyfile(bundled_db, target_db)
+
 
     # -------------------------------------------------
     # Determine subnets
