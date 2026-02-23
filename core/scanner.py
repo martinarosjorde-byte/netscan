@@ -1,3 +1,6 @@
+# Core scanning engine for NetScan
+# scanner.py - Main scanning logic for NetScan
+
 import asyncio
 import ipaddress
 from multiprocessing.util import debug
@@ -26,14 +29,14 @@ IS_WINDOWS = platform.system().lower() == "windows"
 
 class NetworkScanner:
 
-    def __init__(self, ports=None, timeout=0.5, max_concurrent=500, debug=False):
+    def __init__(self, ports=None, timeout=0.5, max_concurrent=500, debug=False, fingerprint_db_path: str | None = None):
         self.debug = debug
   
         self.timeout = timeout
         self.max_concurrent = max_concurrent
         self.hostname_semaphore = asyncio.Semaphore(50)
         self.banner_semaphore = asyncio.Semaphore(100)
-        self.fingerprint_engine = FingerprintEngine(debug=debug)
+        self.fingerprint_engine = FingerprintEngine(db_path=fingerprint_db_path, debug=debug)
         self.http_scanner = HTTPScanner(debug=debug)
         
         db_ports = self._extract_ports_from_fingerprint_db()
@@ -42,6 +45,7 @@ class NetworkScanner:
         else:
             self.ports = sorted(set(CORE_PORTS + db_ports))
         print(f"Loaded {len(self.ports)} scan ports from fingerprint DB")
+        
         # PyInstaller-safe manuf
         self.oui_parser = manuf.MacParser()
 

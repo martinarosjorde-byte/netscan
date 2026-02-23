@@ -1,6 +1,8 @@
+# Fingerprint Engine for NetScan
+# core/fingerprint.py - Implements the fingerprinting logic for device identification
 import json
 import os
-
+import sys
 
 class FingerprintEngine:
 
@@ -14,9 +16,14 @@ class FingerprintEngine:
         self.debug = debug
 
         if db_path is None:
-            base_dir = os.path.dirname(os.path.abspath(__file__))
-            db_path = os.path.join(base_dir, "..", "fingerprints", "fingerprints.json")
-            db_path = os.path.abspath(db_path)
+        # Prefer ProgramData when frozen (installer + writable updates)
+            if getattr(sys, "frozen", False):
+                program_data = os.environ.get("PROGRAMDATA", r"C:\ProgramData")
+                db_path = os.path.join(program_data, "NetScan", "fingerprints.json")
+            else:
+                # dev/script mode: project_root/fingerprints/fingerprints.json
+                base_dir = os.path.dirname(os.path.abspath(__file__))
+                db_path = os.path.abspath(os.path.join(base_dir, "..", "fingerprints", "fingerprints.json"))
 
         self.database = []
         self.metadata = {}

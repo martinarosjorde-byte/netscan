@@ -1,3 +1,5 @@
+# NetScan - Network Scanner
+# cli/cli.py - Command-line interface and main application logic
 from __future__ import annotations
 
 import argparse
@@ -207,6 +209,8 @@ def main() -> None:
     # Fingerprint DB handling
     db_path = get_fingerprint_db_path()
     seed_fingerprint_db_if_missing(db_path)
+    
+    console.print(f"[dim]Using fingerprint DB at: {db_path}[/dim]")
 
     db_updater = FingerprintDBUpdater(str(db_path))
 
@@ -260,7 +264,7 @@ def main() -> None:
     # Scan
     # -------------------------------------------------
 
-    scanner = NetworkScanner(debug=args.debug)
+    scanner = NetworkScanner(debug=args.debug, fingerprint_db_path=str(db_path))
 
     console.print(
         f"\n[bold cyan]Scanning {len(validated)} subnet(s) "
