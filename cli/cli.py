@@ -6,6 +6,7 @@ import ipaddress
 import os
 import shutil
 import socket
+import sys
 from typing import Dict
 
 from rich.console import Console
@@ -69,6 +70,18 @@ def print_banner(update_message=None):
         console.print(f"[dim]{update_message}[/dim]")
     else:
         console.print()
+
+
+def safe_input(prompt: str, default: str = "n") -> str:
+    """Like input() but returns `default` if the user hits Ctrl+C.
+
+    Returns the lower-cased string.
+    """
+    try:
+        return input(prompt).lower()
+    except KeyboardInterrupt:
+        print()
+        return default
 
 
 # -------------------------------------------------
@@ -164,11 +177,24 @@ def main() -> None:
         os.path.join(base_dir, "..", "fingerprints", "fingerprints.json")
     )
 
+    # If the packaged fingerprint DB isn't present, check the current
+    # working directory for a developer/runtime copy and use that if found.
+    if not os.path.exists(db_path):
+        cwd = os.getcwd()
+        alt1 = os.path.abspath(os.path.join(cwd, "fingerprints", "fingerprints.json"))
+        alt2 = os.path.abspath(os.path.join(cwd, "fingerprints.json"))
+        if os.path.exists(alt1):
+            console.print(f"[yellow]Fingerprint DB not found at: {db_path} - using: {alt1}[/yellow]")
+            db_path = alt1
+        elif os.path.exists(alt2):
+            console.print(f"[yellow]Fingerprint DB not found at: {db_path} - using: {alt2}[/yellow]")
+            db_path = alt2
+
     db_updater = FingerprintDBUpdater(db_path)
 
     if not db_updater.exists():
-        console.print("[yellow]Fingerprint DB not found.[/yellow]")
-        choice = input("Download latest fingerprint DB now? (y/n): ").lower()
+        console.print(f"[yellow]Fingerprint DB not found at: {db_path}[/yellow]")
+        choice = safe_input("Download latest fingerprint DB now? (y/n): ", default="n")
 
         if choice == "y":
             if db_updater.download():
@@ -185,7 +211,7 @@ def main() -> None:
                 f"You have {local_version}.[/yellow]"
             )
 
-            choice = input("Update fingerprint DB now? (y/n): ").lower()
+            choice = safe_input("Update fingerprint DB now? (y/n): ", default="n")
             if choice == "y":
                 if db_updater.download():
                     update_message = f"Fingerprint DB updated to {remote_version}."
@@ -266,4 +292,11 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        console.print("\n[red]Interrupted by user. Exiting.[/red]")
+        try:
+            sys.exit(0)
+        except SystemExit:
+            pass

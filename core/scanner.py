@@ -43,13 +43,9 @@ class NetworkScanner:
             self.ports = sorted(set(CORE_PORTS + db_ports))
         print(f"Loaded {len(self.ports)} scan ports from fingerprint DB")
         # PyInstaller-safe manuf
-        if getattr(sys, "frozen", False):
-            base_path = sys._MEIPASS
-            manuf_path = os.path.join(base_path, "manuf", "manuf")
-            self.oui_parser = manuf.MacParser(manuf_path)
-        else:
-            self.oui_parser = manuf.MacParser()
+        self.oui_parser = manuf.MacParser()
 
+        
     def _debug(self, *args):
         if self.debug:
             print("[DEBUG]", *args)
