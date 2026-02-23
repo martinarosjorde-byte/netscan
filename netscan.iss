@@ -1,24 +1,24 @@
+#define MyAppVersion GetEnv("NETSCAN_VERSION")
+
 [Setup]
 AppName=NetScan
-AppVersion=1.2.0
+AppVersion={#MyAppVersion}
 DefaultDirName={autopf}\NetScan
 DefaultGroupName=NetScan
 OutputDir=.
-OutputBaseFilename=NetScan-Installer
+OutputBaseFilename=NetScan-Installer-v{#MyAppVersion}
 Compression=lzma
 SolidCompression=yes
 PrivilegesRequired=admin
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 
-[Dirs]
-Name: "{commonappdata}\NetScan"
-Name: "{app}\fingerprints"
-
 [Files]
 Source: "dist\netscan\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs
 Source: "fingerprints\fingerprints.json"; DestDir: "{app}\fingerprints"; Flags: onlyifdoesntexist
-Source: "fingerprints\fingerprints.json"; DestDir: "{commonappdata}\NetScan"; Flags: onlyifdoesntexist
+
+[Dirs]
+Name: "{app}\fingerprints"
 
 [Icons]
 Name: "{group}\NetScan"; Filename: "{app}\netscan.exe"

@@ -2,11 +2,20 @@ import subprocess
 import zipfile
 import os
 import re
-from datetime import datetime
+import shutil
+from pathlib import Path
 
 VERSION_FILE = "version.py"
 DIST_FOLDER = "dist"
+BUILD_FOLDER = "build"
 EXE_NAME = "netscan.exe"
+INSTALLER_SCRIPT = "netscan.iss"  # your Inno script filename
+INNO_COMPILER = r"C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+
+
+def run(cmd):
+    print(f"> {cmd}")
+    subprocess.check_call(cmd, shell=True)
 
 
 def update_version(new_version):
@@ -25,26 +34,42 @@ def update_version(new_version):
     print(f"✔ Version updated to {new_version}")
 
 
-def run(cmd):
-    print(f"> {cmd}")
-    subprocess.check_call(cmd, shell=True)
+def clean():
+    if os.path.exists(DIST_FOLDER):
+        shutil.rmtree(DIST_FOLDER)
+    if os.path.exists(BUILD_FOLDER):
+        shutil.rmtree(BUILD_FOLDER)
 
 
 def build_exe():
-    run("pyinstaller --onefile --name netscan --collect-all manuf cli/cli.py")
+    # Use your spec file (important!)
+    run("pyinstaller netscan.spec")
 
 
-def zip_build(version):
-    zip_name = f"netscan-windows-x64-v{version}.zip"
+def build_installer(version):
+    run(f'set NETSCAN_VERSION={version} && "{INNO_COMPILER}" {INSTALLER_SCRIPT}')
+
+def zip_portable(version):
+    zip_name = f"netscan-windows-x64-portable-v{version}.zip"
     zip_path = os.path.join(DIST_FOLDER, zip_name)
 
-    exe_path = os.path.join(DIST_FOLDER, EXE_NAME)
+    folder_to_zip = os.path.join(DIST_FOLDER, "netscan")
 
-    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as z:
-        z.write(exe_path, EXE_NAME)
+    shutil.make_archive(
+        zip_path.replace(".zip", ""),
+        'zip',
+        folder_to_zip
+    )
 
     print(f"✔ Created {zip_name}")
     return zip_path
+
+
+def find_installer(version):
+    filename = f"NetScan-Installer-v{version}.exe"
+    if os.path.exists(filename):
+        return os.path.abspath(filename)
+    return None
 
 
 def git_commit_tag(version):
@@ -55,26 +80,37 @@ def git_commit_tag(version):
     run("git push --tags")
 
 
-def publish_release(version, zip_path):
+def publish_release(version, assets):
+    asset_str = " ".join(f'"{a}"' for a in assets)
+
     run(
-        f'gh release create v{version} "{zip_path}" '
+        f'gh release create v{version} {asset_str} '
         f'--title "v{version}" '
         f'--notes "NetScan Enterprise v{version} release"'
     )
 
 
 def main():
-    version = input("Enter new version (e.g. 1.1.0): ").strip()
+    version = input("Enter new version (e.g. 1.2.0): ").strip()
 
     if not version:
         print("Version required.")
         return
 
+    clean()
     update_version(version)
     build_exe()
-    zip_path = zip_build(version)
+    build_installer(version)
+
+    portable_zip = zip_portable(version)
+    installer = find_installer(version)
+
+    assets = [portable_zip]
+    if installer:
+        assets.append(installer)
+
     git_commit_tag(version)
-    publish_release(version, zip_path)
+    publish_release(version, assets)
 
     print("\n🚀 Release completed successfully.")
 
