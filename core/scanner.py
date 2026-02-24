@@ -14,6 +14,8 @@ import manuf
 import platform
 import sys
 import json
+from pathlib import Path
+import sys
 from datetime import datetime
 import time
 import os
@@ -627,14 +629,31 @@ class NetworkScanner:
         return "Unknown Device"
     
 
-    def _save_learning_snapshot(self, subnet, results):
-        
+    def _get_learning_base_path(self) -> Path:
+        # Running as packaged executable (PyInstaller)
+        if getattr(sys, "frozen", False):
+            program_data = Path(os.environ.get("PROGRAMDATA", r"C:\ProgramData"))
+            return program_data / "NetScan" / "learning"
 
-        os.makedirs("learning", exist_ok=True)
+        # Running from source (Python project)
+        project_root = Path(__file__).resolve().parent.parent
+        return project_root / "learning"
+
+    def _save_learning_snapshot(self, subnet, results):
+
+        base_path = self._get_learning_base_path()
+
+        try:
+            base_path.mkdir(parents=True, exist_ok=True)
+        except PermissionError:
+            # Fallback to current working directory
+            fallback = Path(os.getcwd()) / "learning"
+            fallback.mkdir(parents=True, exist_ok=True)
+            base_path = fallback
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M")
         safe_subnet = subnet.replace("/", "_")
-        filename = f"learning/{safe_subnet}_{timestamp}.json"
+        filename = base_path / f"{safe_subnet}_{timestamp}.json"
 
         snapshot = {
             "metadata": {
