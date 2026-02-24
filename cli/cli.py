@@ -193,6 +193,8 @@ def main() -> None:
     parser.add_argument("--no-update-check", action="store_true")
     parser.add_argument("--version", action="version", version=f"NetScan {__version__}")
     parser.add_argument("--debug", action="store_true")
+    parser.add_argument("--learning",action="store_true",help="Enable fingerprint learning mode (extended evidence collection)"
+)
     args = parser.parse_args()
 
     update_message = None
@@ -264,7 +266,7 @@ def main() -> None:
     # Scan
     # -------------------------------------------------
 
-    scanner = NetworkScanner(debug=args.debug, fingerprint_db_path=str(db_path))
+    scanner = NetworkScanner(debug=args.debug, fingerprint_db_path=str(db_path), learning=args.learning)
 
     console.print(
         f"\n[bold cyan]Scanning {len(validated)} subnet(s) "

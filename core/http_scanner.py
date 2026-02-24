@@ -1,3 +1,6 @@
+# HTTPScanner: Asynchronous HTTP/HTTPS scanner with support for meta-refresh and JavaScript redirects, favicon hashing, and certificate info extraction. Designed for use in a larger port scanning framework.
+# core/http_scanner.py
+
 import asyncio
 import re
 import ssl

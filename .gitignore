@@ -70,3 +70,12 @@ desktop.ini
 *.exe
 *.msi
 *.dll
+
+# ----------------------------
+# NetScan Learning Snapshots
+# ----------------------------
+learning/
+
+# NetScan runtime data
+snapshots/
+runtime/

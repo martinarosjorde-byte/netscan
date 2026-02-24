@@ -1,3 +1,5 @@
+# FingerprintDBUpdater: A utility class for managing the local fingerprint database, including checking for updates, downloading new versions, and comparing versions. Designed to be used in a larger application that relies on a local DB of fingerprints for scanning and identification purposes.
+# core/db_updater.py
 import os
 import requests
 import json

@@ -2,22 +2,23 @@
 # scanner.py - Main scanning logic for NetScan
 
 import asyncio
+
 import ipaddress
-from multiprocessing.util import debug
 import socket
 import subprocess
 import ssl
 import re
 import base64
-from urllib import response
 import mmh3
 import manuf
 import platform
 import sys
+import json
+from datetime import datetime
+import time
 import os
 import aiohttp
 from aiohttp import ClientTimeout
-from rich import text
 from core.http_scanner import HTTPScanner
 from core.fingerprint import FingerprintEngine
 
@@ -29,8 +30,9 @@ IS_WINDOWS = platform.system().lower() == "windows"
 
 class NetworkScanner:
 
-    def __init__(self, ports=None, timeout=0.5, max_concurrent=500, debug=False, fingerprint_db_path: str | None = None):
+    def __init__(self, ports=None, timeout=0.5, max_concurrent=500, debug=False, fingerprint_db_path: str | None = None, learning=False):
         self.debug = debug
+        self.learning = learning
   
         self.timeout = timeout
         self.max_concurrent = max_concurrent
@@ -70,7 +72,6 @@ class NetworkScanner:
                 "cert_issuer_contains": [443],
                 "cert_san_contains": [443],
                 "favicon_hash": [80, 443],
-
                 "ssh_banner_contains": [22],
                 "telnet_banner_contains": [23],
                 "smtp_banner_contains": [25],
@@ -103,19 +104,44 @@ class NetworkScanner:
     async def icmp_ping(self, ip):
         try:
             if IS_WINDOWS:
-                cmd = ["ping", "-n", "1", "-w", "500", str(ip)]
+                cmd = ["ping", "-n", "1", "-w", "300", str(ip)]
             else:
-                cmd = ["ping", "-c", "1", "-W", "1", str(ip)]
+                cmd = ["ping", "-c", "1", str(ip)]
 
             proc = await asyncio.create_subprocess_exec(
                 *cmd,
-                stdout=asyncio.subprocess.DEVNULL,
+                stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.DEVNULL
             )
-            await proc.communicate()
-            return proc.returncode == 0
+
+            stdout, _ = await proc.communicate()
+            output = stdout.decode(errors="ignore")
+
+            ttl = None
+            latency = None
+
+            # Linux style: ttl=64 time=0.4 ms
+            ttl_match = re.search(r"ttl[=:](\d+)", output, re.IGNORECASE)
+            time_match = re.search(r"time[=<]?\s*([\d\.]+)", output, re.IGNORECASE)
+
+            if ttl_match:
+                ttl = int(ttl_match.group(1))
+
+            if time_match:
+                latency = float(time_match.group(1))
+            
+            return {
+                "alive": proc.returncode == 0,
+                "ttl": ttl,
+                "latency_ms": latency
+            }
+
         except:
-            return False
+            return {
+                "alive": False,
+                "ttl": None,
+                "latency_ms": None
+            }
 
     # -------------------------------------------------
     # ARP
@@ -160,11 +186,17 @@ class NetworkScanner:
     # -------------------------------------------------
     # Hostname Resolution
     # -------------------------------------------------
-
     async def resolve_host(self, ip):
         async with self.hostname_semaphore:
             try:
-                return await asyncio.to_thread(socket.gethostbyaddr, ip)
+                start = time.perf_counter()
+                result = await asyncio.to_thread(socket.gethostbyaddr, ip)
+                elapsed = (time.perf_counter() - start) * 1000
+
+                return {
+                    "hostname": result[0],
+                    "lookup_time_ms": round(elapsed, 2)
+                }
             except:
                 return None
 
@@ -202,11 +234,15 @@ class NetworkScanner:
 
         alive = set()
         ping_tasks = [self.icmp_ping(ip) for ip in ips]
-        results = await asyncio.gather(*ping_tasks)
+        ping_results = await asyncio.gather(*ping_tasks)
 
-        for ip, is_alive in zip(ips, results):
-            if is_alive:
-                alive.add(str(ip))
+        icmp_data = {}
+
+        for ip, result in zip(ips, ping_results):
+            if result["alive"]:
+                ip_str = str(ip)
+                alive.add(ip_str)
+                icmp_data[ip_str] = result
 
         arp_entries = self.get_arp_entries(subnet)
         alive.update(arp_entries.keys())
@@ -228,7 +264,7 @@ class NetworkScanner:
             cleaned.append(ip)
 
         cleaned.sort(key=lambda x: ipaddress.ip_address(x))
-        return cleaned, arp_entries
+        return cleaned, arp_entries, icmp_data
 
     # -------------------------------------------------
     # Full Scan
@@ -238,7 +274,7 @@ class NetworkScanner:
     async def scan(self, subnet: str, progress_callback=None):
 
         semaphore = asyncio.Semaphore(self.max_concurrent)
-        alive_hosts, arp_entries = await self.discover_hosts(subnet)
+        alive_hosts, arp_entries, icmp_data = await self.discover_hosts(subnet)
 
         results = {}
 
@@ -247,33 +283,50 @@ class NetworkScanner:
         # -------------------------------------------------
         for ip in alive_hosts:
             results[ip] = {
-                "hostname": None,
-                "mac": arp_entries.get(ip),
-                "vendor": None,
-                "ports": [],
-                "http_services": {},  
-                "ssh_banner": None,
-                "smtp_banner": None,
-                "ftp_banner": None,
-                "pop3_banner": None,
-                "imap_banner": None,
+            "hostname": None,
+            "mac": arp_entries.get(ip),
+            "vendor": None,
+            "ports": [],
+            "http_services": {},  
+            "ssh_banner": None,
+            "smtp_banner": None,
+            "ftp_banner": None,
+            "pop3_banner": None,
+            "imap_banner": None,
 
-                # Layered classification
-                "os_family": None,
-                "os_confidence": None,
-                "device_identity": None,
+            # Layered classification
+            "os_family": None,
+            "os_confidence": None,
+            "device_identity": None,
 
-                # Fingerprint outputs
-                "services": [],
-                "fingerprint_matches": [],
-                "device_type": None,
-                "category": None,
-                "os_guess": None,
-                "confidence": None,
-            }
+            # Fingerprint outputs
+            "services": [],
+            "fingerprint_matches": [],
+            "device_type": None,
+            "category": None,
+            "os_guess": None,
+            "confidence": None,
+
+            # 🔥 FIXED STRUCTURE
+            "learning_data": {
+                "reverse_dns": None,
+                "reverse_dns_time_ms": None,
+                "network": {
+                    "icmp_ttl": None,
+                    "icmp_latency_ms": None,
+                    "tcp_connect_times": {}
+                },
+                "tls": {},
+                "http_extended": {}
+            },
+        }
 
             if results[ip]["mac"]:
                 results[ip]["vendor"] = self.oui_parser.get_manuf(results[ip]["mac"])
+
+            if self.learning and ip in icmp_data:
+                results[ip]["learning_data"]["network"]["icmp_ttl"] = icmp_data[ip]["ttl"]
+                results[ip]["learning_data"]["network"]["icmp_latency_ms"] = icmp_data[ip]["latency_ms"]
 
         # -------------------------------------------------
         # Hostname Resolution
@@ -283,7 +336,10 @@ class NetworkScanner:
 
         for ip, result in zip(alive_hosts, hostname_results):
             if result:
-                results[ip]["hostname"] = result[0]
+                results[ip]["hostname"] = result["hostname"]
+                if self.learning:
+                    results[ip]["learning_data"]["reverse_dns"] = result["hostname"]
+                    results[ip]["learning_data"]["reverse_dns_time_ms"] = result["lookup_time_ms"]
 
         # -------------------------------------------------
         # Port Scanning
@@ -295,13 +351,22 @@ class NetworkScanner:
             nonlocal completed
             async with semaphore:
                 try:
+                    start = time.perf_counter()
+
                     reader, writer = await asyncio.wait_for(
                         asyncio.open_connection(ip, port),
                         timeout=self.timeout
                     )
-                    writer.close()
-                    await writer.wait_closed()
+
+                    elapsed = (time.perf_counter() - start) * 1000
                     results[ip]["ports"].append(port)
+
+                    if self.learning:
+                        results[ip]["learning_data"]["network"]["tcp_connect_times"][port] = round(elapsed, 2)
+                    
+                    
+                    writer.close()
+                    await writer.wait_closed()      
                 except:
                     pass
 
@@ -405,14 +470,31 @@ class NetworkScanner:
                 print("[DEBUG] Filtered Services:", services)
                 print("[DEBUG] Best Match:", best)
 
+        if self.learning:
+            self._save_learning_snapshot(subnet, results)
+
         return results
 
 ##
 
     async def _assign_http(self, ip, port, results):
         data = await self.http_scanner.scan(ip, port)
+
         if data:
             results[ip]["http_services"][port] = data
+
+            if self.learning:
+                results[ip]["learning_data"]["http_extended"][port] = {
+                    "status": data.get("status"),
+                    "server": data.get("server"),
+                    "title": data.get("title"),
+                    "headers": data.get("headers"),
+                    "favicon_hash": data.get("favicon_hash"),
+                    "redirect": data.get("redirect"),
+                }
+
+                if data.get("tls"):
+                    results[ip]["learning_data"]["tls"][port] = data["tls"]
 
     async def _assign_banner(self, ip, port, field, results):
         data = await self.grab_tcp_banner(ip, port)
@@ -543,3 +625,39 @@ class NetworkScanner:
             return "Linux Host"
 
         return "Unknown Device"
+    
+
+    def _save_learning_snapshot(self, subnet, results):
+        
+
+        os.makedirs("learning", exist_ok=True)
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M")
+        safe_subnet = subnet.replace("/", "_")
+        filename = f"learning/{safe_subnet}_{timestamp}.json"
+
+        snapshot = {
+            "metadata": {
+                "subnet": subnet,
+                "timestamp": datetime.now().isoformat(),
+                "learning_mode": True
+            },
+            "hosts": {}
+        }
+
+        for ip, data in results.items():
+            snapshot["hosts"][ip] = {
+                "mac": data.get("mac"),
+                "vendor": data.get("vendor"),
+                "ports_open": data.get("ports"),
+                "ssh_banner": data.get("ssh_banner"),
+                "device_identity": data.get("device_identity"),
+                "os_family": data.get("os_family"),
+                "learning_data": data.get("learning_data")
+            }
+
+        with open(filename, "w", encoding="utf-8") as f:
+            json.dump(snapshot, f, indent=4, default=str)
+
+        if self.debug:
+            print(f"[DEBUG] Learning snapshot saved to {filename}")
