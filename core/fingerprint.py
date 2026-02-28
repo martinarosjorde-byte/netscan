@@ -4,6 +4,8 @@ import json
 import os
 import sys
 
+from rich import rule
+
 class FingerprintEngine:
 
     STRONG_WEIGHT = 1.0
@@ -80,24 +82,27 @@ class FingerprintEngine:
         medium = 0
         weak = 0
 
-            # Extract normalized host fields
         ports = host.get("ports", [])
-        
+
         # -------------------------
-        # HTTP Aggregation (NEW MODEL)
+        # HTTP Aggregation
         # -------------------------
 
         http_services = host.get("http_services", {})
+
         title = ""
         server = ""
+        body = ""
         favicon_hash = None
         cert = {}
 
         for svc in http_services.values():
             title += (svc.get("title") or "") + " "
             server += (svc.get("server") or "") + " "
+            body += (svc.get("initial_body_preview") or "") + " "
+            body += (svc.get("body_preview") or "") + " "
 
-            if svc.get("favicon_hash"):
+            if svc.get("favicon_hash") is not None:
                 favicon_hash = svc.get("favicon_hash")
 
             if svc.get("cert"):
@@ -105,36 +110,57 @@ class FingerprintEngine:
 
         title = title.lower()
         server = server.lower()
+        body = body.lower()
 
         cert_cn = (cert.get("common_name") or "").lower()
         cert_issuer = (cert.get("issuer") or "").lower()
+        cert_san = " ".join(cert.get("san", [])).lower()
 
         ssh_banner = (host.get("ssh_banner") or "").lower()
         smtp_banner = (host.get("smtp_banner") or "").lower()
         ftp_banner = (host.get("ftp_banner") or "").lower()
+        pop3_banner = (host.get("pop3_banner") or "").lower()
+        imap_banner = (host.get("imap_banner") or "").lower()
 
         mac_vendor = (host.get("vendor") or "").lower()
         hostname = (host.get("hostname") or "").lower()
 
-        if self.debug and "openwrt" in title:
-            print("[DEBUG][FP] Title seen:", title)
-            print("[DEBUG][FP] Rule title match list:", rule.get("http_title_contains"))
-
+       
 
         # -------------------------
         # STRONG SIGNALS
         # -------------------------
 
-        if any(k.lower() in title for k in rule.get("http_title_contains", [])):
-            strong += 1
+        for k in rule.get("http_title_contains", []):
+            if k.lower() in title:
+                strong += 1
+
+        for k in rule.get("http_body_contains", []):
+            if k.lower() in body:
+                strong += 1
 
         if any(k.lower() in cert_cn for k in rule.get("cert_common_name_contains", [])):
             strong += 1
 
-        if rule.get("favicon_hash") and favicon_hash == rule.get("favicon_hash"):
+        if any(k.lower() in cert_san for k in rule.get("cert_san_contains", [])):
+            strong += 1
+
+        if rule.get("favicon_hash") is not None and favicon_hash == rule.get("favicon_hash"):
             strong += 1
 
         if any(k.lower() in ssh_banner for k in rule.get("ssh_banner_contains", [])):
+            strong += 1
+
+        if any(k.lower() in ftp_banner for k in rule.get("ftp_banner_contains", [])):
+            strong += 1
+
+        if any(k.lower() in smtp_banner for k in rule.get("smtp_banner_contains", [])):
+            strong += 1
+
+        if any(k.lower() in pop3_banner for k in rule.get("pop3_banner_contains", [])):
+            strong += 1
+
+        if any(k.lower() in imap_banner for k in rule.get("imap_banner_contains", [])):
             strong += 1
 
         # -------------------------
@@ -161,8 +187,9 @@ class FingerprintEngine:
             weak += 1
 
         # -------------------------
-        # Compute Weighted Score
+        # Score Calculation
         # -------------------------
+
 
         total_score = (
             strong * self.STRONG_WEIGHT +
@@ -172,25 +199,31 @@ class FingerprintEngine:
 
         max_possible = (
             len(rule.get("http_title_contains", [])) * self.STRONG_WEIGHT +
+            len(rule.get("http_body_contains", [])) * self.STRONG_WEIGHT +
             len(rule.get("cert_common_name_contains", [])) * self.STRONG_WEIGHT +
+            len(rule.get("cert_san_contains", [])) * self.STRONG_WEIGHT +
             len(rule.get("ssh_banner_contains", [])) * self.STRONG_WEIGHT +
-            (1 * self.STRONG_WEIGHT if rule.get("favicon_hash") is not None else 0) + 
+            len(rule.get("ftp_banner_contains", [])) * self.STRONG_WEIGHT +
+            len(rule.get("smtp_banner_contains", [])) * self.STRONG_WEIGHT +
+            len(rule.get("pop3_banner_contains", [])) * self.STRONG_WEIGHT +
+            len(rule.get("imap_banner_contains", [])) * self.STRONG_WEIGHT +
+            (1 * self.STRONG_WEIGHT if rule.get("favicon_hash") is not None else 0) +
             len(rule.get("server_contains", [])) * self.MEDIUM_WEIGHT +
             len(rule.get("mac_vendor_contains", [])) * self.MEDIUM_WEIGHT +
             len(rule.get("hostname_contains", [])) * self.MEDIUM_WEIGHT +
-            len(rule.get("cert_issuer_contains", [])) * self.MEDIUM_WEIGHT +  
+            len(rule.get("cert_issuer_contains", [])) * self.MEDIUM_WEIGHT +
             len(rule.get("ports", [])) * self.WEAK_WEIGHT
         )
 
         if max_possible == 0:
             return None
+        if strong == 0:
+            return None
 
         confidence = min(total_score / max_possible, 1.0)
 
-        if confidence < 0.4:
-            return None
+     
 
-        
         return {
             "device_type": rule.get("name"),
             "category": rule.get("category"),

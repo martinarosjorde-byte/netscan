@@ -10,6 +10,10 @@ import mmh3
 import aiohttp
 from aiohttp import ClientTimeout
 from urllib.parse import urljoin
+from cryptography import x509
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import serialization
+
 
 HTTPS_PORTS = {443, 8443, 9443, 10443, 8006}
 
@@ -21,84 +25,90 @@ class HTTPScanner:
         self.html_preview_lines = html_preview_lines
         self.html_preview_chars = html_preview_chars
 
+
     async def scan(self, ip: str, port: int):
         scheme = "https" if port in HTTPS_PORTS else "http"
         scheme_upper = scheme.upper()
         base_url = f"{scheme}://{ip}:{port}"
 
-        connector = aiohttp.TCPConnector(ssl=False) if scheme == "https" else aiohttp.TCPConnector()
+        rdns = None
+        try:
+            rdns = socket.gethostbyaddr(ip)[0]
+        except Exception:
+            pass
+
+        if self.debug:
+            print("\n[DEBUG] ===========================")
+            print("[DEBUG] Starting HTTP scan")
+            print(f"[DEBUG] IP: {ip}")
+            print(f"[DEBUG] Reverse DNS: {rdns}")
+            print(f"[DEBUG] Port: {port}")
+            print(f"[DEBUG] Scheme: {scheme}")
+            print("[DEBUG] ===========================")
+
+        # -------------------------
+        # TLS Probe
+        # -------------------------
+        cert_info = None
+        if scheme == "https":
+            if self.debug:
+                print("[DEBUG][HTTPS] Running dedicated TLS probe")
+
+            cert_info = await self._probe_tls(ip, port)
+
+            if self.debug:
+                print(f"[DEBUG][HTTPS] TLS Probe Result: {cert_info if cert_info else '<none>'}")
+
+        # -------------------------
+        # HTTP Request
+        # -------------------------
+        if scheme == "https":
+            ssl_ctx = ssl.create_default_context()
+            ssl_ctx.check_hostname = False
+            ssl_ctx.verify_mode = ssl.CERT_NONE
+            connector = aiohttp.TCPConnector(ssl=ssl_ctx)
+        else:
+            connector = aiohttp.TCPConnector()
 
         try:
-            if self.debug:
-                print(f"[DEBUG][{scheme_upper}] Requesting {base_url}/")
-
             async with aiohttp.ClientSession(timeout=self.timeout, connector=connector) as session:
-                resp1, text1 = await self._fetch_text(session, f"{base_url}/")
 
+                if self.debug:
+                    print(f"[DEBUG][{scheme_upper}] Requesting {base_url}/")
 
-                final_url = str(resp1.url)
-                text_final = text1
-                resp = resp1
-                favicon_hash_intermediate = None  # Track favicon from redirects
-                title_intermediate = None  # Track title from redirects
+                resp, text = await self._fetch_text(session, f"{base_url}/")
+                original_text = text
 
-                # Follow meta + JS redirects (client-side)
-                resp_redir, text_redir, favicon_hash_intermediate, title_intermediate = await self._follow_client_redirects(
-                    session=session,
-                    base_url=base_url,
-                    current_url=final_url,
-                    html=text_final,
-                    max_hops=2
-                )
+                # Follow meta/JS redirects
+                redirect_resp, redirect_body, favicon_from_redirect, title_from_redirect = \
+                    await self._follow_client_redirects(
+                        session, base_url, str(resp.url), text
+                    )
 
-                if resp_redir is not None:
-                    resp = resp_redir
-                    text_final = text_redir
-                    final_url = str(resp.url)
-                meta_url = self._extract_meta_refresh_url(text1)
-                if meta_url:
-                    if not meta_url.startswith("http"):
-                        meta_url = f"{base_url}/{meta_url.lstrip('/')}"
-                    if self.debug:
-                        print(f"[DEBUG][{scheme_upper}] Meta redirect -> {meta_url}")
+                if redirect_resp:
+                    resp = redirect_resp
+                    text = redirect_body
 
-                    resp2, text2 = await self._fetch_text(session, meta_url)
-                    final_url = str(resp2.url)
-                    text_final = text2
-                    resp = resp2
-
+                final_url = str(resp.url)
                 status_code = resp.status
                 headers = dict(resp.headers)
                 server = headers.get("Server") or headers.get("server")
 
-                # --- DEBUG: HTML preview always ---
+                # Debug preview
                 if self.debug:
-                    self._debug_html_preview(final_url, text_final)
+                    self._debug_html_preview(final_url, text)
 
-                title = self._extract_title(text_final)
-                
-                # Prefer title from intermediate pages (before redirect) if available
-                if title_intermediate:
-                    title = title_intermediate
+                # Extract title
+                title = self._extract_title(text) or title_from_redirect
 
-                # --- DEBUG: Title always ---
+                # Extract favicon
+                favicon_hash = favicon_from_redirect
+                if favicon_hash is None:
+                    favicon_hash = await self._fetch_favicon_hash(session, base_url, text)
+
                 if self.debug:
                     print(f"[DEBUG][{scheme_upper}] Title: {title if title else '<none>'}")
-
-                # Use favicon from intermediate pages if found, otherwise extract from final page
-                favicon_hash = favicon_hash_intermediate
-                if favicon_hash is None:
-                    favicon_hash = await self._fetch_favicon_hash(session, base_url, text_final)
-
-                # --- DEBUG: favicon hash always ---
-                if self.debug:
-                    print(f"[DEBUG][{scheme_upper}] Favicon hash: {favicon_hash if favicon_hash is not None else '<none>'}")
-
-                cert_info = None
-                if scheme == "https":
-                    cert_info = await self._get_cert_info(ip, port)
-                    if self.debug:
-                        print(f"[DEBUG][{scheme_upper}] Cert: {cert_info if cert_info else '<none>'}")
+                    print(f"[DEBUG][{scheme_upper}] Cert: {cert_info if cert_info else '<none>'}")
 
                 return {
                     "url": final_url,
@@ -108,21 +118,101 @@ class HTTPScanner:
                     "headers": headers,
                     "cert": cert_info,
                     "favicon_hash": favicon_hash,
+                    "body_preview": text[:3000], 
+                    "initial_body_preview": original_text[:3000],
                 }
 
         except Exception as e:
             if self.debug:
-                scheme = "HTTPS" if base_url.startswith("https") else "HTTP"
-                print(f"[DEBUG][{scheme}] Failed {base_url}/ -> {e}")
+                print(f"[DEBUG][{scheme_upper}] Failed {base_url}/ -> {e}")
             return None
 
-    async def _fetch_text(self, session: aiohttp.ClientSession, url: str):
-        async with session.get(url, allow_redirects=True) as resp:
-            text = await resp.text(errors="ignore")
+    async def _probe_tls(self, ip: str, port: int):
+        return await asyncio.to_thread(self._probe_tls_blocking, ip, port)
+
+
+    def _probe_tls_blocking(self, ip: str, port: int):
+        try:
+            ctx = ssl.create_default_context()
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
+
+            with socket.create_connection((ip, port), timeout=5) as sock:
+                with ctx.wrap_socket(sock, server_hostname=ip) as ssock:
+
+                    der = ssock.getpeercert(binary_form=True)
+                    if not der:
+                        return None
+
+                    import hashlib
+                    sha256 = hashlib.sha256(der).hexdigest()
+
+                    # -------------------------
+                    # Parse certificate using cryptography
+                    # -------------------------
+                    cert = x509.load_der_x509_certificate(der, default_backend())
+
+                    # CN
+                    common_name = None
+                    try:
+                        common_name = cert.subject.get_attributes_for_oid(
+                            x509.NameOID.COMMON_NAME
+                        )[0].value
+                    except Exception:
+                        pass
+
+                    # Issuer CN
+                    issuer_cn = None
+                    try:
+                        issuer_cn = cert.issuer.get_attributes_for_oid(
+                            x509.NameOID.COMMON_NAME
+                        )[0].value
+                    except Exception:
+                        pass
+
+                    # SAN
+                    san_list = []
+                    try:
+                        ext = cert.extensions.get_extension_for_class(
+                            x509.SubjectAlternativeName
+                        )
+                        san_list = ext.value.get_values_for_type(x509.DNSName)
+                    except Exception:
+                        pass
+
+                    # Serial number
+                    serial_number = format(cert.serial_number, "x")
+
+                    # Public key size
+                    public_key = cert.public_key()
+                    key_size = None
+                    try:
+                        key_size = public_key.key_size
+                    except Exception:
+                        pass
+
+                    # Signature algorithm
+                    signature_algorithm = cert.signature_hash_algorithm.name \
+                        if cert.signature_hash_algorithm else None
+
+                    return {
+                        "common_name": common_name,
+                        "issuer": issuer_cn,
+                        "san": san_list,
+                        "serial_number": serial_number,
+                        "public_key_size": key_size,
+                        "signature_algorithm": signature_algorithm,
+                        "expires": cert.not_valid_after_utc.isoformat(),
+                        "sha256": sha256,
+                        "tls_version": ssock.version(),
+                        "cipher": ssock.cipher(),
+                    }
+
+        except Exception as e:
             if self.debug:
-                scheme = "HTTPS" if url.startswith("https") else "HTTP"
-                print(f"[DEBUG][{scheme}] {url} status={resp.status}")
-            return resp, text
+                print(f"[DEBUG][HTTPS] TLS probe failed: {e}")
+            return None
+
 
     def _extract_title(self, html: str):
         m = re.search(r"<title>(.*?)</title>", html, re.IGNORECASE | re.DOTALL)
@@ -305,3 +395,13 @@ class HTTPScanner:
 
         # if we never redirected, resp stays None; caller already has first resp
         return resp, body, favicon_hash, title_intermediate
+    
+    async def _fetch_text(self, session: aiohttp.ClientSession, url: str):
+        async with session.get(url, allow_redirects=True) as resp:
+            text = await resp.text(errors="ignore")
+
+            if self.debug:
+                scheme = "HTTPS" if url.startswith("https") else "HTTP"
+                print(f"[DEBUG][{scheme}] {url} status={resp.status}")
+
+            return resp, text

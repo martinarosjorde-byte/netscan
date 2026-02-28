@@ -24,7 +24,7 @@ from aiohttp import ClientTimeout
 from core.http_scanner import HTTPScanner
 from core.fingerprint import FingerprintEngine
 
-CORE_PORTS = [21, 23, 110, 143, 587, 53, 139, 10443, 5900, 8080, 8443, 8006]
+CORE_PORTS = [21, 23, 110, 143,443,8443, 587, 53, 139, 10443, 5900, 8080, 8443, 8006]
 HTTPS_PORTS = {443, 8443, 9443, 10443, 8006}
 
 IS_WINDOWS = platform.system().lower() == "windows"
@@ -323,8 +323,15 @@ class NetworkScanner:
             },
         }
 
-            if results[ip]["mac"]:
-                results[ip]["vendor"] = self.oui_parser.get_manuf(results[ip]["mac"])
+            mac = results[ip]["mac"]
+
+            if mac and re.match(r"^([0-9a-f]{2}:){5}[0-9a-f]{2}$", mac.lower()):
+                try:
+                    results[ip]["vendor"] = self.oui_parser.get_manuf(mac)
+                except Exception:
+                    results[ip]["vendor"] = None
+            else:
+                results[ip]["vendor"] = None
 
             if self.learning and ip in icmp_data:
                 results[ip]["learning_data"]["network"]["icmp_ttl"] = icmp_data[ip]["ttl"]
@@ -459,7 +466,10 @@ class NetworkScanner:
                 host["os_guess"] = best.get("os_guess")
                 host["confidence"] = best.get("confidence")
 
-            # -------------------------
+            if best and best["confidence"] >= 0.7:
+                host["device_identity"] = best["category"]
+            
+            
             # DEBUG OUTPUT
             # -------------------------
             if self.debug:
@@ -471,32 +481,35 @@ class NetworkScanner:
                 print("[DEBUG] Raw FP Matches:", matches)
                 print("[DEBUG] Filtered Services:", services)
                 print("[DEBUG] Best Match:", best)
+                print("[DEBUG] SSH:", host.get("ssh_banner"))
+                print("[DEBUG] FTP:", host.get("ftp_banner"))
+                print("[DEBUG] SMTP:", host.get("smtp_banner"))
 
         if self.learning:
             self._save_learning_snapshot(subnet, results)
 
         return results
 
-##
 
     async def _assign_http(self, ip, port, results):
         data = await self.http_scanner.scan(ip, port)
 
-        if data:
-            results[ip]["http_services"][port] = data
+        if not data:
+            return
 
-            if self.learning:
-                results[ip]["learning_data"]["http_extended"][port] = {
-                    "status": data.get("status"),
-                    "server": data.get("server"),
-                    "title": data.get("title"),
-                    "headers": data.get("headers"),
-                    "favicon_hash": data.get("favicon_hash"),
-                    "redirect": data.get("redirect"),
-                }
+        results[ip]["http_services"][port] = data
 
-                if data.get("tls"):
-                    results[ip]["learning_data"]["tls"][port] = data["tls"]
+        if self.learning:
+            results[ip]["learning_data"]["http_extended"][port] = {
+                "status": data.get("status"),
+                "server": data.get("server"),
+                "title": data.get("title"),
+                "headers": data.get("headers"),
+                "favicon_hash": data.get("favicon_hash"),
+            }
+
+            if data.get("cert"):
+                results[ip]["learning_data"]["tls"][port] = data.get("cert")
 
     async def _assign_banner(self, ip, port, field, results):
         data = await self.grab_tcp_banner(ip, port)
@@ -611,6 +624,9 @@ class NetworkScanner:
         # Management interfaces
         if any(x in vendor for x in ["dell", "hewlett", "lenovo"]) and 443 in ports:
             return "Management Interface"
+
+        if host.get("ftp_banner") and "readynas" in host["ftp_banner"].lower():
+            return "NAS"
 
         # Windows classification
         if os_guess == "Windows":

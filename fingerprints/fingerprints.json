@@ -53,13 +53,6 @@
     },
 
     {
-      "name": "FortiGate Firewall",
-      "category": "Firewall",
-      "http_title_contains": ["FortiGate"],
-      "cert_common_name_contains": ["fortigate"]
-    },
-
-    {
       "name": "pfSense Firewall",
       "category": "Firewall",
       "http_title_contains": ["pfSense"],
@@ -234,6 +227,148 @@
     "ports": [80, 443],
     "favicon_hash": -1181890616
   },  
+  {
+    "name": "Chromecast Device",
+    "category": "IoT Device",
+    "os_guess": "Cast OS",
+    "ports": [8443],
+    "cert_issuer_contains": ["Chromecast"]
+  },  
+ {
+  "name": "NETGEAR ReadyNAS",
+  "category": "NAS Device",
+  "os_guess": "Linux",
+  "ftp_banner_contains": ["netgear readynas", "proftpd server (netgear"],
+  "ports": [21]
+}, 
+
+{
+  "name": "Traefik Reverse Proxy",
+  "category": "Reverse Proxy",
+  "os_guess": "Linux",
+  "cert_common_name_contains": [
+    "traefik"
+  ],
+  "cert_issuer_contains": [
+    "traefik"
+  ],
+   "ports": [443]
+},
+{
+  "name": "Cisco ASA / Firepower WebVPN",
+  "category": "Firewall / VPN",
+  "os_guess": "Network OS",
+  "http_body_contains": ["/+cscoe+/", "sdesktop="],
+  "ports": [443]
+},
+{
+  "name": "Synology RackStation NAS",
+  "category": "NAS / Storage",
+  "os_guess": "Linux",
+  "ftp_banner_contains": [
+    "rackstation ftp server"
+  ],
+  "ports": [21]
+},
+{
+  "name": "Ubiquiti UniFi OS",
+  "category": "Network Device",
+  "os_guess": "Network OS",
+  "http_title_contains": ["unifi os"],
+  "cert_common_name_contains": ["unifi"],
+  "cert_issuer_contains": ["unifi"],
+  "ports": [443]
+}
+,
+{
+  "name": "Ubiquiti UniFi Dream Machine Pro",
+  "category": "Network Gateway",
+  "os_guess": "Network OS",
+  "http_body_contains": [
+    "udmpro",
+    "uniFi dream machine pro"
+  ],
+  "http_title_contains": ["unifi os"],
+  "ports": [443]
+}
+,
+{
+  "name": "ASUS Router",
+  "category": "Network Device",
+  "os_guess": "Network OS",
+  "cert_common_name_contains": [
+    "router.asus.com"
+  ],
+  "cert_issuer_contains": [
+    "router.asus.com"
+  ],
+  "ports": [443, 8443]
+},
+{
+  "name": "Zyxel Router / Firewall",
+  "category": "Network Device",
+  "os_guess": "Network OS",
+  "http_title_contains": [
+    "welcome to the web-based configurator"
+  ],
+  "server_contains": [
+    "zyxel"
+  ],
+  "ports": [22, 80, 443]
+},
+
+  {
+    "name": "Qnap NAS",
+    "category": "Storage Device",
+    "os_guess": "Qnap OS",
+    "http_title_contains": ["Qnap", "QNAP"],
+    "cert_issuer_contains": ["Qnap"],
+    "cert_common_name_contains": ["qnap"], 
+    "ports": [80, 443,8080],
+    "favicon_hash": -827888480
+  },  
+  {
+    "name": "FortiGate Firewall",
+    "category": "Network Device",
+    "os_guess": "Network OS",
+    "http_title_contains": ["FortiGate", "ACME Access Only"],
+    "cert_issuer_contains": ["fortinet", "fortinet-subca", "fortinet-subca2001"],
+    "cert_common_name_contains": ["fortigate","fortinet"], 
+    "ports": [80, 443],
+    "favicon_hash": -827888480
+  },  
+  {
+  "name": "FortiGate Firewall",
+  "category": "Firewall / VPN",
+  "os_guess": "Network OS",
+
+  "http_body_contains": [
+    "/remote/login",
+    "/remote/logincheck",
+    "ftnt-",
+    "fortinet"
+  ],
+
+  "cert_issuer_contains": [
+    "fortinet"
+  ],
+
+  "cert_common_name_contains": [
+    "fgt"
+  ],
+
+  "ports": [443]
+},
+
+{
+  "name": "N-able N-central",
+  "category": "RMM / Management Platform",
+  "os_guess": "Application",
+
+  "http_title_contains": ["n-central"],
+  "http_body_contains": ["n-central", "n-able"],
+  "ports": [443]
+},
 {
     "name": "ASUS router",
     "category": "Network Device",
@@ -242,6 +377,45 @@
     "ports": [80, 443],
     "favicon_hash": -1982635535
   },
+
+  {
+  "name": "Cisco Meraki Device (Local Status Page)",
+  "category": "Network Device",
+  "os_guess": "Network OS",
+
+  "http_body_contains": [
+    "meraki-logo.png",
+    "device_noun",
+    "is functioning normally",
+    "trying to join a network"
+  ],
+
+  "ports": [80]
+},
+{
+  "name": "Ubiquiti EdgeRouter (EdgeOS)",
+  "category": "Network Device",
+  "os_guess": "Network OS",
+
+  "cert_common_name_contains": [
+    "ubnt router ui"
+  ],
+
+  "http_body_contains": [
+    "edge.config",
+    "/api/edge/",
+    "ubiquiti networks"
+  ],
+
+  "ports": [443]
+},
+{
+      "name": "Cisco router with SSH enabled",
+      "category": "Network Device" ,
+      "ssh_banner_contains": ["SSH-2.0-Cisco"],
+      "ports": [22]
+    }
+,
     {
       "name": "Elasticsearch",
       "category": "Database",
