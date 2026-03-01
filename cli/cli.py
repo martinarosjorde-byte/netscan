@@ -111,10 +111,10 @@ def get_fingerprint_db_path() -> Path:
     """
     if getattr(sys, "frozen", False):
         program_data = Path(os.environ.get("PROGRAMDATA", r"C:\ProgramData"))
-        return program_data / "NetScan" / "fingerprints.json"
+        return program_data / "NetScan" 
 
     project_root = Path(__file__).resolve().parent.parent
-    return project_root / "fingerprints" / "fingerprints.json"
+    return project_root / "fingerprints" 
 
 
 def seed_fingerprint_db_if_missing(target_db: Path) -> None:

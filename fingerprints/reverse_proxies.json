@@ -1,0 +1,172 @@
+{
+  "metadata": {
+    "name": "Reverse Proxy & Default Certificate Pack",
+    "schema_version": "3.0",
+    "author": "Humbug Software"
+  },
+  "fingerprints": [
+
+    {
+      "id": "fp_traefik_default_cert",
+      "name": "Traefik Reverse Proxy (Default Certificate)",
+      "category": "Reverse Proxy",
+      "os_guess": "Linux",
+      "priority": 85,
+      "signals": {
+        "strong": {
+          "ssl": {
+            "cert_common_name_contains": ["traefik default cert"],
+            "cert_issuer_contains": ["traefik default cert"]
+          }
+        },
+        "medium": {
+          "ssl": {
+            "cert_san_contains": [".traefik.default"]
+          }
+        },
+        "weak": {
+          "ports": [443, 8443]
+        }
+      }
+    },
+{
+  "id": "fp_zoraxy_selfhost",
+  "name": "Zoraxy Reverse Proxy",
+  "category": "Reverse Proxy / Self-hosting",
+  "os_guess": "Linux",
+  "priority": 130,
+  "signals": {
+    "strong": {
+      "ssl": {
+        "cert_common_name_contains": [
+          "zoraxy self-host"
+        ],
+        "cert_issuer_contains": [
+          "zoraxy self-host"
+        ]
+      }
+    }
+  }
+},
+    {
+      "id": "fp_caddy_default_cert",
+      "name": "Caddy Server (Default Certificate)",
+      "category": "Reverse Proxy / Web Server",
+      "os_guess": "Linux",
+      "priority": 80,
+      "signals": {
+        "strong": {
+          "ssl": {
+            "cert_issuer_contains": ["caddy local authority"],
+            "cert_common_name_contains": ["caddy"]
+          }
+        },
+        "medium": {
+          "http": {
+            "server_contains": ["caddy"]
+          }
+        },
+        "weak": {
+          "ports": [443, 8443]
+        }
+      }
+    },
+
+    {
+      "id": "fp_nginx_self_signed",
+      "name": "Nginx (Default Self-Signed Certificate)",
+      "category": "Web Server",
+      "os_guess": "Linux",
+      "priority": 70,
+      "signals": {
+        "strong": {
+          "ssl": {
+            "cert_common_name_contains": ["localhost"],
+            "cert_issuer_contains": ["localhost"]
+          }
+        },
+        "medium": {
+          "http": {
+            "server_contains": ["nginx"]
+          }
+        },
+        "weak": {
+          "ports": [443]
+        }
+      }
+    },
+
+    {
+      "id": "fp_k8s_ingress_default_cert",
+      "name": "Kubernetes Ingress (Default Certificate)",
+      "category": "Container / Orchestration",
+      "os_guess": "Linux",
+      "priority": 90,
+      "signals": {
+        "strong": {
+          "ssl": {
+            "cert_common_name_contains": ["kubernetes"],
+            "cert_issuer_contains": ["kubernetes"]
+          }
+        },
+        "medium": {
+          "ssl": {
+            "cert_san_contains": ["ingress.local"]
+          }
+        },
+        "weak": {
+          "ports": [443]
+        }
+      }
+    },
+
+    {
+      "id": "fp_synology_default_cert",
+      "name": "Synology NAS (Default Certificate)",
+      "category": "NAS",
+      "os_guess": "Linux",
+      "priority": 85,
+      "signals": {
+        "strong": {
+          "ssl": {
+            "cert_common_name_contains": ["synology"],
+            "cert_issuer_contains": ["synology"]
+          }
+        },
+        "medium": {
+          "http": {
+            "title_contains": ["diskstation", "synology"]
+          }
+        },
+        "weak": {
+          "ports": [5001, 443]
+        }
+      }
+    },
+
+    {
+      "id": "fp_ubiquiti_default_cert",
+      "name": "Ubiquiti Device (Default Certificate)",
+      "category": "Network Device",
+      "os_guess": "Network OS",
+      "priority": 85,
+      "signals": {
+        "strong": {
+          "ssl": {
+            "cert_common_name_contains": ["unifi", "ubnt"],
+            "cert_issuer_contains": ["unifi", "ubnt"]
+          }
+        },
+        "medium": {
+          "http": {
+            "title_contains": ["unifi", "ubiquiti"]
+          }
+        },
+        "weak": {
+          "ports": [443, 8443]
+        }
+      }
+    }
+
+  ]
+}

@@ -1,0 +1,415 @@
+{
+  "metadata": {
+    "schema_version": "3.0",
+    "pack": "Firewalls"
+  },
+  
+  "fingerprints": [
+   {
+  "id": "fp_fortigate_admin",
+  "name": "FortiGate Firewall (Admin UI)",
+  "category": "Firewall / VPN",
+  "os_guess": "Network OS",
+  "priority": 95,
+  "signals": {
+    "strong": {
+      "http": {
+        "body_contains": [
+          "window.fgt_lang",
+          "fgt_lang",
+          "ftnt-",
+          "/logincheck"
+        ]
+      }
+    },
+    "medium": {
+      "ssl": {
+        "cert_common_name_contains": ["fgt", "fg"],
+        "cert_issuer_contains": ["fortinet"]
+      }
+    },
+    "weak": {
+      "ports": [443, 8443, 10443]
+    }
+  }
+},
+{
+  "id": "fp_fortigate_cert_exact",
+  "name": "FortiGate Firewall",
+  "category": "Firewall / VPN",
+  "os_guess": "Network OS",
+  "priority": 200,
+  "signals": {
+    "strong": {
+      "ssl": {
+        "cert_common_name_contains": ["fortigate"],
+        "cert_issuer_contains": ["fortigate"]
+      }
+    }
+  }
+},
+{
+  "id": "fp_sonicwall_gen7",
+  "name": "SonicWall Firewall (SonicOS 7)",
+  "category": "Firewall / VPN",
+  "os_guess": "Network OS",
+  "priority": 180,
+  "signals": {
+    "strong": {
+      "http": {
+        "title_contains": [
+          "sonicwall network security login"
+        ],
+        "body_contains": [
+          "/sonicui/7/",
+          "sonicwall"
+        ]
+      }
+    },
+    "medium": {
+      "ssl": {
+        "cert_common_name_regex": ["^\\d+\\.\\d+\\.\\d+\\.\\d+$"]
+      }
+    },
+    "weak": {
+      "ports": [443]
+    }
+  }
+  
+},
+{
+  "id": "fp_fortigate_cert_exact",
+  "name": "FortiGate Firewall",
+  "category": "Firewall / VPN",
+  "os_guess": "Network OS",
+  "priority": 300,
+  "signals": {
+    "strong": {
+      "ssl": {
+        "cert_common_name_contains": ["fortigate"]
+      }
+    }
+  }
+},
+{
+  "id": "fp_fortigate_modern_ui",
+  "name": "FortiGate Firewall (Modern UI)",
+  "category": "Firewall / VPN",
+  "os_guess": "Network OS",
+  "priority": 110,
+  "signals": {
+    "strong": {
+      "http": {
+        "title_contains": [
+          "fortigate"
+        ],
+        "body_contains": [
+          "/api/v2/monitor/web-ui",
+          "base href=\"/static/\""
+        ]
+      },
+      "tls": {
+        "common_name_contains": [
+          "fortigate"
+        ],
+        "issuer_contains": [
+          "fgt"
+        ]
+      }
+    },
+    "weak": {
+      "ports": [443]
+    }
+  }
+},
+    {
+      "id": "fp_checkpoint",
+      "name": "Check Point Firewall",
+      "category": "Firewall",
+      "priority": 90,
+      "signals": {
+        "strong": {
+          "http": {
+            "title_contains": ["check point"]
+          }
+        }
+      }
+    },
+
+    {
+      "id": "fp_paloalto",
+      "name": "Palo Alto Firewall",
+      "category": "Firewall",
+      "priority": 90,
+      "signals": {
+        "strong": {
+          "http": {
+            "title_contains": ["palo alto networks"]
+          }
+        }
+      }
+    },
+
+    {
+      "id": "fp_pfsense",
+      "name": "pfSense Firewall",
+      "category": "Firewall",
+      "priority": 85,
+      "signals": {
+        "strong": {
+          "http": {
+            "title_contains": ["pfsense"]
+          }
+        }
+      }
+    },
+
+    {
+  "id": "fp_cisco_asa_sslvpn",
+  "name": "Cisco ASA SSL VPN",
+  "category": "Firewall / VPN",
+  "os_guess": "Network OS",
+  "priority": 105,
+  "signals": {
+    "strong": {
+      "http": {
+        "body_contains": [
+          "/+cscoe+/logon.html",
+          "+cscoe+",
+          "webvpn"
+        ]
+      }
+    },
+    "medium": {
+      "http": {
+        "body_contains": [
+          "anyconnect",
+          "cisco"
+        ]
+      }
+    },
+    "weak": {
+      "ports": [443]
+    }
+  }
+},
+{
+  "id": "fp_fortigate_sslvpn",
+  "name": "FortiGate Firewall (SSL-VPN)",
+  "category": "Firewall / VPN",
+  "os_guess": "Network OS",
+  "priority": 96,
+  "signals": {
+    "strong": {
+      "http": {
+        "body_contains": [
+          "/remote/login",
+          "/remote/logincheck",
+          "sslvpn"
+        ]
+      }
+    },
+    "medium": {
+      "ssl": {
+        "cert_common_name_contains": ["fgt", "fg"]
+      }
+    },
+    "weak": {
+      "ports": [443, 8443]
+    }
+  }
+}
+    ,
+
+{
+  "id": "fp_fortigate_saml_frontdoor",
+  "name": "FortiGate Firewall (SSL-VPN SAML)",
+  "category": "Firewall / VPN",
+  "os_guess": "Network OS",
+  "priority": 97,
+  "signals": {
+    "strong": {
+      "http": {
+        "body_contains": [
+          "/remote/login",
+          "samlrequest=",
+          "relaystate=",
+          "window.location='https://login.microsoftonline.com"
+        ]
+      }
+    },
+    "weak": {
+      "ports": [443]
+    }
+  }
+},
+
+
+{
+  "id": "fp_fortigate_saml_microsoft",
+  "name": "FortiGate VPN (SAML → Microsoft)",
+  "category": "Firewall / VPN",
+  "os_guess": "Network OS",
+  "priority": 60,
+  "signals": {
+    "strong": {
+      "http": {
+        "body_contains": [
+          "login.microsoftonline.com",
+          "samlrequest=",
+          "relaystate="
+        ]
+      }
+    },
+    "weak": {
+      "ports": [443]
+    }
+  }
+}
+,
+
+   {
+  "id": "fp_fortigate_cert",
+  "name": "FortiGate Firewall (Cert Signature)",
+  "category": "Firewall / VPN",
+  "os_guess": "Network OS",
+  "priority": 70,
+  "signals": {
+    "strong": {
+      "ssl": {
+        "cert_common_name_contains": ["fgt", "ftk"],
+        "cert_issuer_contains": ["fortinet"]
+      }
+    },
+    "weak": {
+      "ports": [443]
+    }
+  }
+},
+{
+  "id": "fp_paloalto_globalprotect",
+  "name": "Palo Alto GlobalProtect Portal",
+  "category": "Firewall / VPN",
+  "os_guess": "PAN-OS",
+  "priority": 170,
+  "signals": {
+    "strong": {
+      "http": {
+        "title_contains": [
+          "globalprotect portal"
+        ],
+        "body_contains": [
+          "/global-protect/",
+          "globalprotect",
+          "login.esp"
+        ]
+      }
+    },
+    "weak": {
+      "ports": [443]
+    },
+    "medium": {
+  "ssl": {
+    "cert_issuer_contains": [
+      "palo alto",
+      "pan"
+    ]
+  }
+}
+  }
+},
+{
+  "id": "fp_sonicwall_ssl_vpn_portal",
+  "name": "SonicWall SSL VPN Portal",
+  "category": "Firewall / VPN",
+  "os_guess": "SonicOS",
+  "priority": 160,
+  "signals": {
+    "strong": {
+      "http": {
+        "body_contains": [
+          "/themes/lite1/",
+          "javascript/validation/oem.js",
+          "loginstylesheet.css"
+        ]
+      }
+    },
+    "medium": {
+      "http": {
+        "title_contains": [
+          "vpn portal"
+        ]
+      }
+    },
+    "weak": {
+      "ports": [443]
+    }
+  }
+},
+{
+  "id": "fp_ubiquiti_edgerouter_edgeos",
+  "name": "Ubiquiti EdgeRouter (EdgeOS)",
+  "category": "Router / Firewall",
+  "os_guess": "EdgeOS (Vyatta-based Linux)",
+  "priority": 190,
+  "signals": {
+    "strong": {
+      "http": {
+        "title_contains": [
+          "edgeos"
+        ],
+        "body_contains": [
+          "ubiquiti networks",
+          "edge.min.css"
+        ]
+      },
+      "ssl": {
+        "cert_common_name_contains": [
+          "ubiquitirouterui"
+        ],
+        "cert_issuer_contains": [
+          "ubiquitirouterui"
+        ]
+      }
+    },
+    "weak": {
+      "ports": [443]
+    }
+  }
+},
+ {
+      "id": "fp_zyxel_vpn_series",
+      "name": "Zyxel VPN Firewall (ZLD)",
+      "category": "Firewall / VPN Appliance",
+      "os_guess": "Embedded Linux",
+      "priority": 95,
+      "signals": {
+        "strong": {
+          "http": {
+            "title_contains": [
+              "vpn100",
+              "vpn300",
+              "vpn50",
+              "vpn series"
+            ],
+            "body_contains": [
+              "nebula.zyxel.com",
+              "zyfunction.js",
+              "zld_product_spec"
+            ]
+          },
+          "tls": {
+            "common_name_contains": [
+              "vpn100_",
+              "vpn300_",
+              "vpn50_"
+            ]
+          }
+        },
+        "weak": {
+          "ports": [8443]
+        }
+      }
+    }
+  ]
+}

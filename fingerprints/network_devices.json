@@ -1,0 +1,321 @@
+{
+  "metadata": {
+    "pack_name": "Network Device Pack",
+    "schema_version": "3.0",
+    "author": "Humbug Software",
+    "description": "Network infrastructure devices including routers, switches, firewalls and controllers."
+  },
+
+  "fingerprints": [
+
+{
+  "id": "fp_mikrotik_routeros",
+  "name": "MikroTik RouterOS",
+  "category": "Network Device",
+  "os_guess": "Network OS",
+  "priority": 95,
+  "signals": {
+    "strong": {
+      "ftp": {
+        "banner_contains": ["mikrotik"]
+      },
+      "ssh": {
+        "banner_contains": ["routeros"]
+      }
+    },
+    "medium": {
+      "device": {
+        "mac_vendor_contains": ["mikrotik"]
+      },
+      "http": {
+        "title_contains": ["routeros", "mikrotik"]
+      }
+    },
+    "weak": {
+      "ports": [21, 23, 8291]
+    }
+  }
+},
+
+    {
+      "id": "fp_cisco_ios",
+      "name": "Cisco IOS Device",
+      "category": "Network Device",
+      "os_guess": "Network OS",
+      "priority": 90,
+      "signals": {
+        "strong": {
+          "ssh": {
+            "banner_contains": ["cisco-ios", "cisco ios"]
+          }
+        },
+        "medium": {
+          "device": {
+            "mac_vendor_contains": ["cisco"]
+          }
+        },
+        "weak": {
+          "ports": [22, 23]
+        }
+      }
+    },
+
+    {
+      "id": "fp_cisco_ios_xe",
+      "name": "Cisco IOS-XE",
+      "category": "Network Device",
+      "os_guess": "Network OS",
+      "priority": 92,
+      "signals": {
+        "strong": {
+          "ssh": {
+            "banner_contains": ["ios-xe"]
+          }
+        },
+        "medium": {
+          "device": {
+            "mac_vendor_contains": ["cisco"]
+          }
+        }
+      }
+    },
+
+    {
+      "id": "fp_aruba_os",
+      "name": "ArubaOS Device",
+      "category": "Network Device",
+      "os_guess": "Network OS",
+      "priority": 88,
+      "signals": {
+        "strong": {
+          "ssh": {
+            "banner_contains": ["arubaos"]
+          },
+          "http": {
+            "title_contains": ["aruba"]
+          }
+        },
+        "medium": {
+          "device": {
+            "mac_vendor_contains": ["aruba", "hewlett packard"]
+          }
+        }
+      }
+    },
+
+    {
+      "id": "fp_juniper_junos",
+      "name": "Juniper JunOS Device",
+      "category": "Network Device",
+      "os_guess": "Network OS",
+      "priority": 90,
+      "signals": {
+        "strong": {
+          "ssh": {
+            "banner_contains": ["junos"]
+          }
+        },
+        "medium": {
+          "device": {
+            "mac_vendor_contains": ["juniper"]
+          }
+        }
+      }
+    },
+
+    {
+      "id": "fp_ubiquiti_edgeos",
+      "name": "Ubiquiti EdgeOS",
+      "category": "Network Device",
+      "os_guess": "Network OS",
+      "priority": 85,
+      "signals": {
+        "strong": {
+          "ssh": {
+            "banner_contains": ["edgeos"]
+          },
+          "http": {
+            "title_contains": ["ubiquiti"]
+          }
+        },
+        "medium": {
+          "device": {
+            "mac_vendor_contains": ["ubiquiti"]
+          }
+        }
+      }
+    },
+
+    {
+      "id": "fp_tplink_jetstream",
+      "name": "TP-Link JetStream Switch",
+      "category": "Network Device",
+      "os_guess": "Network OS",
+      "priority": 80,
+      "signals": {
+        "strong": {
+          "http": {
+            "title_contains": ["tp-link"]
+          }
+        },
+        "medium": {
+          "device": {
+            "mac_vendor_contains": ["tp-link"]
+          }
+        }
+      }
+    },
+    {
+  "id": "fp_tplink_router_ssl",
+  "name": "TP-Link Router (SSL)",
+  "category": "Network Device",
+  "os_guess": "Network OS",
+  "priority": 90,
+  "signals": {
+    "strong": {
+      "ssl": {
+        "cert_common_name_contains": ["tplinkwifi.net"],
+        "cert_issuer_contains": ["tplinkwifi.net"]
+      }
+    },
+    "medium": {
+      "http": {
+        "title_contains": ["tp-link"]
+      }
+    },
+    "weak": {
+      "ports": [443]
+    }
+  }
+},
+{
+  "id": "fp_asus_router",
+  "name": "ASUS Router (Admin UI)",
+  "category": "Network Device",
+  "os_guess": "Network OS",
+  "priority": 95,
+  "signals": {
+    "strong": {
+      "http": {
+        "title_contains": ["asus wireless router"],
+        "body_contains": ["/Main_Login.asp"]
+      },
+      "ssl": {
+        "cert_common_name_contains": ["router.asus.com"]
+      }
+    },
+    "medium": {
+      "http": {
+        "header_contains": ["asus"]
+      }
+    },
+    "weak": {
+      "ports": [8443]
+    }
+  }
+},
+{
+  "id": "fp_draytek_vigor_router",
+  "name": "DrayTek Vigor Router",
+  "category": "Network Device",
+  "os_guess": "Network OS",
+  "priority": 95,
+  "signals": {
+    "strong": {
+      "ssl": {
+        "cert_common_name_contains": ["vigor router"],
+        "cert_issuer_contains": ["vigor router"]
+      },
+      "http": {
+        "title_contains": ["vigor login page"]
+      }
+    },
+    "medium": {
+      "http": {
+        "server_contains": ["draywebserver"]
+      },
+      "ssl": {
+        "cert_san_contains": ["draytek"]
+      }
+    },
+    "weak": {
+      "ports": [443]
+    }
+  }
+},
+  {
+      "id": "fp_unifi_network",
+      "name": "Ubiquiti UniFi Network Controller",
+      "category": "Network Management",
+      "os_guess": "Linux",
+      "priority": 80,
+      "signals": {
+        "strong": {
+          "http": {
+            "title_contains": ["unifi network"],
+            "body_contains": [
+              "unifi-network-app-container",
+              "/manage/account/login"
+            ]
+          }
+        },
+        "weak": {
+          "ports": [8080, 8443]
+        }
+      }
+    },
+    {
+      "id": "fp_generic_network_switch",
+      "name": "Generic Network Switch",
+      "category": "Network Device",
+      "os_guess": "Network OS",
+      "priority": 50,
+      "signals": {
+        "strong": {
+          "device": {
+            "mac_vendor_contains": [
+              "cisco",
+              "aruba",
+              "juniper",
+              "mikrotik",
+              "tp-link",
+              "ubiquiti"
+            ]
+          }
+        },
+        "weak": {
+          "ports": [22, 23]
+        }
+      }
+    },
+    {
+  "id": "fp_teltonika_rut_series",
+  "name": "Teltonika RUT Series Router",
+  "category": "Router / Industrial Gateway",
+  "os_guess": "Embedded Linux (OpenWrt)",
+  "priority": 150,
+  "signals": {
+    "strong": {
+      "ssl": {
+        "cert_common_name_equals": ["teltonika"],
+        "cert_issuer_equals": ["teltonika"]
+      },
+      "http": {
+        "title_contains": [
+          "teltonika-rut",
+          "teltonika"
+        ],
+        "body_contains": [
+          "/cgi-bin/luci",
+          "/luci-static/"
+        ]
+      }
+    },
+    "weak": {
+      "ports": [443]
+    }
+  }
+}
+
+  ]
+}

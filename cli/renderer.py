@@ -103,6 +103,7 @@ def render_table(subnet, results):
     if show_columns["services"]:
         table.add_column("Services")
 
+
     # -----------------------------
     # Build Rows
     # -----------------------------

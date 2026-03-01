@@ -1,0 +1,161 @@
+{
+  "metadata": {
+    "name": "Surveillance Devices Pack",
+    "schema_version": "3.0",
+    "author": "Humbug Software"
+  },
+  "fingerprints": [
+
+    {
+      "id": "fp_vivotek_nvr",
+      "name": "Vivotek NVR",
+      "category": "Camera / NVR",
+      "os_guess": "Embedded Linux",
+      "priority": 95,
+      "signals": {
+        "strong": {
+          "http": {
+            "title_contains": ["vivotek", "vivotek nvr"]
+          },
+          "ssl": {
+            "cert_common_name_contains": ["vivotek"],
+            "cert_issuer_contains": ["vivotek"]
+          }
+        },
+        "medium": {
+          "http": {
+            "server_contains": ["vvtk-http-server"]
+          }
+        },
+        "weak": {
+          "ports": [80, 443]
+        }
+      }
+    },
+
+    {
+      "id": "fp_hikvision_device",
+      "name": "Hikvision Camera / NVR",
+      "category": "Camera / NVR",
+      "os_guess": "Embedded Linux",
+      "priority": 95,
+      "signals": {
+        "strong": {
+          "http": {
+            "title_contains": ["hikvision"]
+          },
+          "ssl": {
+            "cert_common_name_contains": ["hikvision"],
+            "cert_issuer_contains": ["hikvision"]
+          }
+        },
+        "medium": {
+          "http": {
+            "body_contains": ["doc/page/login.asp", "hikvision"]
+          }
+        },
+        "weak": {
+          "ports": [80, 443, 8000]
+        }
+      }
+    },
+
+    {
+      "id": "fp_dahua_device",
+      "name": "Dahua Camera / NVR",
+      "category": "Camera / NVR",
+      "os_guess": "Embedded Linux",
+      "priority": 95,
+      "signals": {
+        "strong": {
+          "http": {
+            "title_contains": ["dahua"]
+          },
+          "ssl": {
+            "cert_common_name_contains": ["dahua"],
+            "cert_issuer_contains": ["dahua"]
+          }
+        },
+        "medium": {
+          "http": {
+            "body_contains": ["web service", "dahua"]
+          }
+        },
+        "weak": {
+          "ports": [80, 443, 37777]
+        }
+      }
+    },
+
+    {
+      "id": "fp_axis_camera",
+      "name": "Axis IP Camera",
+      "category": "Camera",
+      "os_guess": "Embedded Linux",
+      "priority": 90,
+      "signals": {
+        "strong": {
+          "http": {
+            "title_contains": ["axis"]
+          },
+          "ssl": {
+            "cert_common_name_contains": ["axis"]
+          }
+        },
+        "medium": {
+          "http": {
+            "server_contains": ["axis"]
+          }
+        },
+        "weak": {
+          "ports": [80, 443]
+        }
+      }
+    },
+
+    {
+      "id": "fp_uniview_device",
+      "name": "Uniview Camera / NVR",
+      "category": "Camera / NVR",
+      "os_guess": "Embedded Linux",
+      "priority": 90,
+      "signals": {
+        "strong": {
+          "http": {
+            "title_contains": ["uniview"]
+          },
+          "ssl": {
+            "cert_common_name_contains": ["uniview"]
+          }
+        },
+        "weak": {
+          "ports": [80, 443]
+        }
+      }
+    },
+
+    {
+      "id": "fp_reolink_camera",
+      "name": "Reolink Camera",
+      "category": "Camera",
+      "os_guess": "Embedded Linux",
+      "priority": 85,
+      "signals": {
+        "strong": {
+          "http": {
+            "title_contains": ["reolink"]
+          }
+        },
+        "medium": {
+          "ssl": {
+            "cert_common_name_contains": ["reolink"]
+          }
+        },
+        "weak": {
+          "ports": [80, 443]
+        }
+      }
+    }
+
+  ]
+}

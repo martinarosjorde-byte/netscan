@@ -450,26 +450,36 @@ class NetworkScanner:
             # Build Services (filtered)
             services = []
             for m in matches:
-                if m.get("confidence", 0) >= 0.6:
+                if m.get("confidence", 0) >= 0.45:  # lower threshold for visibility
                     services.append({
-                        "name": m.get("device_type"),
+                        "name": m.get("name"),
                         "category": m.get("category"),
                         "confidence": m.get("confidence"),
+                        "confidence_level": m.get("confidence_level"),
                     })
 
             host["services"] = services
 
             # Primary classification
+   
             if best:
-                host["device_type"] = best.get("device_type")
+                host["device_type"] = best.get("name")          
                 host["category"] = best.get("category")
                 host["os_guess"] = best.get("os_guess")
                 host["confidence"] = best.get("confidence")
 
-            if best and best["confidence"] >= 0.7:
-                host["device_identity"] = best["category"]
+            # If high confidence, override identity
+            if best and best.get("confidence", 0) >= 0.7:
+                host["device_identity"] = best.get("name")      # or category if you prefer
+                # Override identity completely if fingerprint exists
+                host["device_identity"] = best.get("name")
+
+                # Override OS if fingerprint has better OS guess
+                if best.get("os_guess"):
+                    host["os_family"] = best.get("os_guess")
+                    host["os_confidence"] = best.get("confidence")        
             
-            
+            # -------------------------
             # DEBUG OUTPUT
             # -------------------------
             if self.debug:

@@ -1,0 +1,9 @@
+{
+  "global_settings": {
+    "strong_weight": 5,
+    "medium_weight": 3,
+    "weak_weight": 1,
+    "confidence_threshold": 5,
+    "high_confidence_threshold": 12
+  }
+}

@@ -1,0 +1,61 @@
+{
+  "metadata": {
+    "schema_version": "3.0",
+    "pack": "Enterprise Applications"
+  },
+  "fingerprints": [
+    {
+      "id": "fp_manageengine_servicedesk",
+      "name": "ManageEngine ServiceDesk Plus",
+      "category": "ITSM / Helpdesk",
+      "os_guess": "Windows/Linux",
+      "priority": 95,
+      "signals": {
+        "strong": {
+          "http": {
+            "title_contains": [
+              "manageengine servicedesk plus"
+            ]
+          }
+        },
+        "medium": {
+          "http": {
+            "body_contains": [
+              "zohocomponents",
+              "sdp-design.js",
+              "servicedesk plus"
+            ]
+          }
+        },
+        "weak": {
+          "ports": [443]
+        }
+      }
+    },
+    {
+  "id": "fp_citrix_gateway",
+  "name": "Citrix Gateway (NetScaler VPN)",
+  "category": "Firewall / VPN",
+  "os_guess": "Citrix ADC",
+  "priority": 175,
+  "signals": {
+    "strong": {
+      "http": {
+        "title_contains": [
+          "citrix gateway"
+        ],
+        "body_contains": [
+          "/vpn/index.html",
+          "/vpn/js/",
+          "/logon/themes/default/",
+          "citrix systems"
+        ]
+      }
+    },
+    "weak": {
+      "ports": [443]
+    }
+  }
+}
+  ]
+}

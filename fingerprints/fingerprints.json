@@ -1,426 +1,288 @@
 {
   "metadata": {
-    "name": "NetScan Fingerprint Database",
-    "version": "2.2.0",
-    "last_updated": "2026-02-21",
+    "name": "NetScan Fingerprint Intelligence Database",
+    "engine_version": "3.0",
+    "schema_version": "3.0",
+    "last_updated": "2026-03-01",
     "author": "Humbug Software",
-    "description": "Enterprise-grade high-signal fingerprint database for NetScan."
+    "description": "Weighted multi-signal fingerprint database for NetScan Learning Engine 3.0."
   },
 
-  "rules": [
+  "schema_documentation": {
+    "description": "Each fingerprint defines weighted detection signals. Scoring is cumulative. Strong signals are required for match unless explicitly overridden.",
 
+    "weights": {
+      "strong": "High confidence indicators such as unique HTTP titles, SSL CN matches, banner strings.",
+      "medium": "Supporting indicators such as HTTP server header, MAC vendor, hostname pattern.",
+      "weak": "Low confidence indicators such as port presence."
+    },
+
+    "signal_types": {
+      "http.title_contains": "Substring match inside HTML title.",
+      "http.body_contains": "Substring match inside HTTP body preview.",
+      "http.header_contains": "Substring match in aggregated HTTP headers.",
+      "http.server_contains": "Match inside HTTP Server header.",
+      "http.cookie_contains": "Match inside Set-Cookie headers.",
+
+      "ssl.cert_common_name_contains": "Substring match in certificate common name.",
+      "ssl.cert_issuer_contains": "Substring match in certificate issuer.",
+      "ssl.cert_san_contains": "Substring match in certificate SAN list.",
+
+      "ssh.banner_contains": "Substring match in SSH banner.",
+      "smtp.banner_contains": "Substring match in SMTP banner.",
+      "ftp.banner_contains": "Substring match in FTP banner.",
+      "pop3.banner_contains": "Substring match in POP3 banner.",
+      "imap.banner_contains": "Substring match in IMAP banner.",
+
+      "device.mac_vendor_contains": "Match inside MAC vendor string.",
+      "device.hostname_contains": "Match inside resolved hostname.",
+
+      "misc.favicon_hashes": "MMH3 hash of /favicon.ico.",
+      "ports": "Presence of any of the listed ports."
+    },
+
+    "negative_signals": "If matched, fingerprint is invalidated or penalized."
+  },
+
+
+
+ "fingerprints": [
     {
-      "name": "Microsoft IIS Server",
+      "id": "fp_microsoft_iis",
+      "name": "Microsoft IIS",
       "category": "Web Server",
       "os_guess": "Windows",
-      "server_contains": ["Microsoft-IIS"]
+      "priority": 50,
+      "signals": {
+        "strong": {
+          "http": {
+            "server_contains": ["microsoft-iis"]
+          }
+        },
+        "medium": {
+          "http": {
+            "header_contains": ["x-aspnet-version", "x-powered-by"],
+            "cookie_contains": ["asp.net_sessionid"]
+          }
+        },
+        "weak": {
+          "ports": [80, 443]
+        }
+      }
     },
 
-    {
-      "name": "Microsoft Exchange",
-      "category": "Mail Server",
-      "http_title_contains": ["Outlook"],
-      "server_contains": ["Microsoft-IIS"],
-      "ports": [443]
+{
+  "id": "fp_mailenable",
+  "name": "MailEnable Mail Server",
+  "category": "Mail Server",
+  "os_guess": "Windows",
+  "priority": 90,
+  "signals": {
+    "strong": {
+      "http": {
+        "title_contains": ["mailenable mail services"]
+      },
+      "pop3": {
+        "banner_contains": ["mailenable"]
+      },
+      "imap": {
+        "banner_contains": ["mailenable"]
+      }
     },
-
+    "medium": {
+      "smtp": {
+        "banner_contains": ["mailenable"]
+      }
+    },
+    "weak": {
+      "ports": [110, 143, 587]
+    }
+  }
+},
     {
+      "id": "fp_apache",
       "name": "Apache Web Server",
       "category": "Web Server",
-      "server_contains": ["Apache"]
+      "priority": 10,
+      "signals": {
+        "strong": {
+          "http": {
+            "server_contains": ["apache"]
+          }
+        }
+      },
+      "negative": {  
+        "ssl": {
+    "cert_common_name_contains": ["fortigate"]
+    } 
+    }
     },
-
+{
+  "id": "fp_carlo_gavazzi_uwp3",
+  "name": "Carlo Gavazzi UWP3 Industrial Web Interface",
+  "category": "Industrial / Energy Monitoring",
+  "os_guess": "Embedded Linux",
+  "priority": 120,
+  "signals": {
+    "strong": {
+      "http": {
+        "title_contains": [
+          "uwp3.0 web"
+        ],
+        "body_contains": [
+          "uwp3.0 web"
+        ]
+      },
+      "ssl": {
+        "cert_common_name_equals": [
+          "uwp3"
+        ]
+      }
+    }
+  },
+  "negative_signals": {
+    "http": {
+      "server_contains": [
+        "apache tomcat"
+      ]
+    }
+  }
+}
+    ,
     {
+      "id": "fp_nginx",
       "name": "Nginx Web Server",
       "category": "Web Server",
-      "server_contains": ["nginx"]
+      "priority": 10,
+      "signals": {
+        "strong": {
+          "http": {
+            "server_contains": ["nginx"]
+          }
+        }
+      }
     },
 
+   
     {
-      "name": "Cisco IOS Device",
-      "category": "Network Device",
-      "os_guess": "Cisco IOS",
-      "server_contains": ["cisco-ios"],
-      "mac_vendor_contains": ["Cisco"]
-    },
-
-    {
-      "name": "HPE iLO",
-      "category": "Management Interface",
-      "ssh_banner_contains": ["Mocana"],
-      "http_title_contains": ["Integrated Lights-Out"],
-      "mac_vendor_contains": ["Hewlett"]
-    },
-
-    {
-      "name": "pfSense Firewall",
-      "category": "Firewall",
-      "http_title_contains": ["pfSense"],
-      "server_contains": ["lighttpd"]
-    },
-
-    {
-      "name": "Palo Alto Firewall",
-      "category": "Firewall",
-      "http_title_contains": ["Palo Alto Networks"],
-      "cert_common_name_contains": ["pan"]
-    },
-
-    {
-      "name": "Check Point Firewall",
-      "category": "Firewall",
-      "http_title_contains": ["Check Point"],
-      "server_contains": ["Check Point"]
-    },
-
-    {
-      "name": "Juniper SRX",
-      "category": "Firewall",
-      "http_title_contains": ["Juniper"],
-      "server_contains": ["Juniper"]
-    },
-
-    {
-      "name": "F5 BIG-IP",
-      "category": "Load Balancer",
-      "http_title_contains": ["BIG-IP"],
-      "server_contains": ["BigIP"]
-    },
-
-    {
-      "name": "Citrix NetScaler",
-      "category": "Load Balancer",
-      "server_contains": ["NS-CACHE"],
-      "http_title_contains": ["Citrix"]
-    },
-
-    {
-      "name": "Aruba CX Switch",
-      "category": "Network Device",
-      "http_title_contains": ["ArubaOS"],
-      "mac_vendor_contains": ["Aruba"]
-    },
-
-    {
-      "name": "Dell iDRAC",
-      "category": "Management Interface",
-      "http_title_contains": ["iDRAC"],
-      "mac_vendor_contains": ["Dell"]
-    },
-
-    {
-      "name": "Lenovo XClarity Controller",
-      "category": "Management Interface",
-      "http_title_contains": ["XClarity"]
-    },
-
-    {
+      "id": "fp_proxmox",
       "name": "Proxmox VE",
       "category": "Hypervisor",
-      "http_title_contains": ["Proxmox"],
-      "ports": [8006]
+      "priority": 80,
+      "signals": {
+        "strong": {
+          "http": {
+            "title_contains": ["proxmox"]
+          }
+        },
+        "weak": {
+          "ports": [8006]
+        }
+      }
     },
 
     {
+      "id": "fp_vmware_esxi",
       "name": "VMware ESXi",
       "category": "Hypervisor",
-      "http_title_contains": ["VMware ESXi"],
-      "cert_issuer_contains": ["VMware"]
+      "priority": 85,
+      "signals": {
+        "strong": {
+          "http": {
+            "title_contains": ["vmware esxi"]
+          }
+        },
+        "medium": {
+          "ssl": {
+            "cert_issuer_contains": ["vmware"]
+          }
+        }
+      }
     },
-
     {
+      "id": "fp_synology",
       "name": "Synology NAS",
       "category": "NAS",
-      "http_title_contains": ["Synology"]
+      "priority": 70,
+      "signals": {
+        "strong": {
+          "http": {
+            "title_contains": ["synology"]
+          }
+        }
+      }
     },
 
     {
+      "id": "fp_truenas",
       "name": "TrueNAS",
       "category": "NAS",
-      "http_title_contains": ["TrueNAS"],
-      "server_contains": ["nginx"]
+      "priority": 75,
+      "signals": {
+        "strong": {
+          "http": {
+            "title_contains": ["truenas"]
+          }
+        }
+      }
     },
-
     {
-      "name": "MikroTik RouterOS",
-      "category": "Network Device",
-      "http_title_contains": ["RouterOS"]
-    },
-
-    {
-      "name": "TP-Link Router",
-      "category": "Network Device",
-      "mac_vendor_contains": ["TP-Link"],
-      "http_title_contains": ["TP-Link"]
-    },
-
-    {
+      "id": "fp_gitlab",
       "name": "GitLab",
       "category": "DevOps",
-      "http_title_contains": ["GitLab"]
+      "priority": 60,
+      "signals": {
+        "strong": {
+          "http": {
+            "title_contains": ["gitlab"]
+          }
+        }
+      }
     },
 
     {
+      "id": "fp_grafana",
       "name": "Grafana",
       "category": "Monitoring",
-      "http_title_contains": ["Grafana"]
+      "priority": 60,
+      "signals": {
+        "strong": {
+          "http": {
+            "title_contains": ["grafana"]
+          }
+        }
+      }
     },
 
     {
+      "id": "fp_jenkins",
       "name": "Jenkins CI",
       "category": "CI/CD",
-      "http_title_contains": ["Jenkins"]
+      "priority": 60,
+      "signals": {
+        "strong": {
+          "http": {
+            "title_contains": ["jenkins"]
+          }
+        }
+      }
     },
 
+  
+
     {
+      "id": "fp_portainer",
       "name": "Portainer",
       "category": "Container Management",
-      "http_title_contains": ["Portainer"]
-    },
-
-    {
-      "name": "Kubernetes API Server",
-      "category": "Container Platform",
-      "ports": [6443],
-      "cert_common_name_contains": ["kubernetes"]
-    },
-
-    {
-      "name": "Redis Server",
-      "category": "Database",
-      "ports": [6379]
-    },
-
-    {
-      "name": "PostgreSQL Server",
-      "category": "Database",
-      "ports": [5432]
-    },
-
-    {
-      "name": "MySQL / MariaDB",
-      "category": "Database",
-      "ports": [3306]
-    },
-
-    {
-      "name": "MongoDB",
-      "category": "Database",
-      "ports": [27017]
-    },
-
-  {
-    "name": "OpenWrt",
-    "category": "Network Device",
-    "os_guess": "Network OS",
-    "http_title_contains": ["OpenWrt", "LuCI"],
-    "ssh_banner_contains": ["dropbear"],
-    "server_contains": ["uhttpd"],
-    "ports": [22, 53, 80, 443],
-    "favicon_hash": -1491699252
-
-  },
-{
-    "name": "HPE Switch",
-    "category": "Network Device",
-    "os_guess": "Network OS",
-    "ports": [80, 443],
-    "favicon_hash": -1181890616
-  },  
-  {
-    "name": "Chromecast Device",
-    "category": "IoT Device",
-    "os_guess": "Cast OS",
-    "ports": [8443],
-    "cert_issuer_contains": ["Chromecast"]
-  },  
- {
-  "name": "NETGEAR ReadyNAS",
-  "category": "NAS Device",
-  "os_guess": "Linux",
-  "ftp_banner_contains": ["netgear readynas", "proftpd server (netgear"],
-  "ports": [21]
-}, 
-
-{
-  "name": "Traefik Reverse Proxy",
-  "category": "Reverse Proxy",
-  "os_guess": "Linux",
-  "cert_common_name_contains": [
-    "traefik"
-  ],
-  "cert_issuer_contains": [
-    "traefik"
-  ],
-   "ports": [443]
-},
-{
-  "name": "Cisco ASA / Firepower WebVPN",
-  "category": "Firewall / VPN",
-  "os_guess": "Network OS",
-  "http_body_contains": ["/+cscoe+/", "sdesktop="],
-  "ports": [443]
-},
-{
-  "name": "Synology RackStation NAS",
-  "category": "NAS / Storage",
-  "os_guess": "Linux",
-  "ftp_banner_contains": [
-    "rackstation ftp server"
-  ],
-  "ports": [21]
-},
-{
-  "name": "Ubiquiti UniFi OS",
-  "category": "Network Device",
-  "os_guess": "Network OS",
-  "http_title_contains": ["unifi os"],
-  "cert_common_name_contains": ["unifi"],
-  "cert_issuer_contains": ["unifi"],
-  "ports": [443]
-}
-,
-{
-  "name": "Ubiquiti UniFi Dream Machine Pro",
-  "category": "Network Gateway",
-  "os_guess": "Network OS",
-  "http_body_contains": [
-    "udmpro",
-    "uniFi dream machine pro"
-  ],
-  "http_title_contains": ["unifi os"],
-  "ports": [443]
-}
-,
-{
-  "name": "ASUS Router",
-  "category": "Network Device",
-  "os_guess": "Network OS",
-  "cert_common_name_contains": [
-    "router.asus.com"
-  ],
-  "cert_issuer_contains": [
-    "router.asus.com"
-  ],
-  "ports": [443, 8443]
-},
-{
-  "name": "Zyxel Router / Firewall",
-  "category": "Network Device",
-  "os_guess": "Network OS",
-  "http_title_contains": [
-    "welcome to the web-based configurator"
-  ],
-  "server_contains": [
-    "zyxel"
-  ],
-  "ports": [22, 80, 443]
-},
-
-  {
-    "name": "Qnap NAS",
-    "category": "Storage Device",
-    "os_guess": "Qnap OS",
-    "http_title_contains": ["Qnap", "QNAP"],
-    "cert_issuer_contains": ["Qnap"],
-    "cert_common_name_contains": ["qnap"], 
-    "ports": [80, 443,8080],
-    "favicon_hash": -827888480
-  },  
-  {
-    "name": "FortiGate Firewall",
-    "category": "Network Device",
-    "os_guess": "Network OS",
-    "http_title_contains": ["FortiGate", "ACME Access Only"],
-    "cert_issuer_contains": ["fortinet", "fortinet-subca", "fortinet-subca2001"],
-    "cert_common_name_contains": ["fortigate","fortinet"], 
-    "ports": [80, 443],
-    "favicon_hash": -827888480
-  },  
-  {
-  "name": "FortiGate Firewall",
-  "category": "Firewall / VPN",
-  "os_guess": "Network OS",
-
-  "http_body_contains": [
-    "/remote/login",
-    "/remote/logincheck",
-    "ftnt-",
-    "fortinet"
-  ],
-
-  "cert_issuer_contains": [
-    "fortinet"
-  ],
-
-  "cert_common_name_contains": [
-    "fgt"
-  ],
-
-  "ports": [443]
-},
-
-{
-  "name": "N-able N-central",
-  "category": "RMM / Management Platform",
-  "os_guess": "Application",
-
-  "http_title_contains": ["n-central"],
-  "http_body_contains": ["n-central", "n-able"],
-  "ports": [443]
-},
-{
-    "name": "ASUS router",
-    "category": "Network Device",
-    "os_guess": "Network OS",
-    "http_title_contains": ["ASUS"],
-    "ports": [80, 443],
-    "favicon_hash": -1982635535
-  },
-
-  {
-  "name": "Cisco Meraki Device (Local Status Page)",
-  "category": "Network Device",
-  "os_guess": "Network OS",
-
-  "http_body_contains": [
-    "meraki-logo.png",
-    "device_noun",
-    "is functioning normally",
-    "trying to join a network"
-  ],
-
-  "ports": [80]
-},
-{
-  "name": "Ubiquiti EdgeRouter (EdgeOS)",
-  "category": "Network Device",
-  "os_guess": "Network OS",
-
-  "cert_common_name_contains": [
-    "ubnt router ui"
-  ],
-
-  "http_body_contains": [
-    "edge.config",
-    "/api/edge/",
-    "ubiquiti networks"
-  ],
-
-  "ports": [443]
-},
-{
-      "name": "Cisco router with SSH enabled",
-      "category": "Network Device" ,
-      "ssh_banner_contains": ["SSH-2.0-Cisco"],
-      "ports": [22]
+      "priority": 60,
+      "signals": {
+        "strong": {
+          "http": {
+            "title_contains": ["portainer"]
+          }
+        }
+      }
     }
-,
-    {
-      "name": "Elasticsearch",
-      "category": "Database",
-      "http_title_contains": ["Elastic"],
-      "ports": [9200]
-    }
+
   ]
 }

@@ -1,0 +1,69 @@
+{
+  "metadata": {
+    "schema_version": "3.0",
+    "pack": "Remote Support Platforms"
+  },
+  "fingerprints": [
+    {
+      "id": "fp_simplehelp",
+      "name": "SimpleHelp Remote Support",
+      "category": "Remote Support",
+      "os_guess": "Windows/Linux",
+      "priority": 100,
+      "signals": {
+        "strong": {
+          "http": {
+            "server_contains": [
+              "simplehelp"
+            ],
+            "body_contains": [
+              "on demand remote support application",
+              "customer/embed.js"
+            ]
+          }
+        },
+        "medium": {
+          "http": {
+            "body_contains": [
+              "simplehelp",
+              "ssuite"
+            ]
+          }
+        },
+        "weak": {
+          "ports": [443]
+        }
+      }
+    },{
+  "id": "fp_remotely_server",
+  "name": "Remotely Remote Support",
+  "category": "Remote Support",
+  "os_guess": "Windows/Linux",
+  "priority": 100,
+  "signals": {
+    "strong": {
+      "http": {
+        "title_contains": [
+          "remotely"
+        ],
+        "body_contains": [
+          "remotely_server.styles.css",
+          "support portal"
+        ]
+      }
+    },
+    "medium": {
+      "http": {
+        "body_contains": [
+          "blazor:",
+          "/remotecontrol"
+        ]
+      }
+    },
+    "weak": {
+      "ports": [443]
+    }
+  }
+}
+  ]
+}

@@ -1,0 +1,100 @@
+{
+  "metadata": {
+    "schema_version": "3.0",
+    "pack": "FTP Servers"
+  },
+  "fingerprints": [
+    {
+      "id": "fp_pureftpd",
+      "name": "Pure-FTPd Server",
+      "category": "FTP Server",
+      "os_guess": "Linux",
+      "priority": 40,
+      "signals": {
+        "strong": {
+          "ftp": {
+            "banner_contains": [
+              "pure-ftpd"
+            ]
+          }
+        },
+        "weak": {
+          "ports": [21]
+        }
+      }
+    },
+    {
+      "id": "fp_microsoft_ftp_service",
+      "name": "Microsoft FTP Service",
+      "category": "FTP Server",
+      "os_guess": "Windows",
+      "priority": 40,
+      "signals": {
+        "strong": {
+          "ftp": {
+            "banner_contains": [
+              "Microsoft FTP Service"
+            ]
+          }
+        },
+        "weak": {
+          "ports": [21]
+        }
+      }
+    },
+
+{
+      "id": "fp_vsftpd",
+      "name": "Very Secure FTP Daemon",
+      "category": "FTP Server",
+      "os_guess": "Linux",
+      "priority": 40,
+      "signals": {
+        "strong": {
+          "ftp": {
+            "banner_contains": [
+              "vsftpd"
+            ]
+          }
+        },
+        "weak": {
+          "ports": [21]
+        }
+      }
+    },
+
+
+    {
+  "id": "fp_filezilla_ftp",
+  "name": "FileZilla FTP Server",
+  "category": "FTP Server",
+  "priority": 70,
+  "signals": {
+    "strong": {
+      "ftp": {
+        "banner_contains": ["filezilla"]
+      }
+    }
+  }
+},
+     {
+      "id": "fp_Dovecot_ftp",
+      "name": "Dovecot FTP Server",
+      "category": "FTP Server",
+      "os_guess": "Linux",
+      "priority": 40,
+      "signals": {
+        "strong": {
+          "ftp": {
+            "banner_contains": [
+              "Dovecot"
+            ]
+          }
+        },
+        "weak": {
+          "ports": [21]
+        }
+      }
+    }
+  ]
+}

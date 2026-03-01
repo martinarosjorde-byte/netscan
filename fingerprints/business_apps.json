@@ -1,0 +1,37 @@
+{
+  "metadata": {
+    "name": "Business Applications Pack",
+    "schema_version": "3.0",
+    "author": "Humbug Software"
+  },
+  "fingerprints": [
+{
+  "id": "fp_easyjob_webapp",
+  "name": "easyjob WebApp",
+  "category": "Business Application",
+  "os_guess": null,
+  "priority": 90,
+  "signals": {
+    "strong": {
+      "http": {
+        "title_contains": [
+          "easyjob webapp"
+        ]
+      }
+    },
+    "medium": {
+      "http": {
+        "body_contains": [
+          "projectsstyle.css",
+          "timetrackingstyle.css",
+          "calendarstyle.css",
+          "easyjob"
+        ]
+      }
+    },
+    "weak": {
+      "ports": [443]
+    }
+  }
+}
+]}

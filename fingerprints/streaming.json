@@ -1,0 +1,35 @@
+{
+  "metadata": {
+    "name": "Streaming pack",
+    "schema_version": "3.0",
+    "author": "Humbug Software"
+  },
+  "fingerprints": [
+
+{
+  "id": "fp_ovenmediaengine",
+  "name": "OvenMediaEngine Streaming Server",
+  "category": "Streaming / Media Server",
+  "os_guess": "Linux",
+  "priority": 85,
+  "signals": {
+    "strong": {
+      "http": {
+        "body_contains": [
+          "authorization header is required to call api",
+          "statuscode\":403"
+        ]
+      }
+    },
+    "medium": {
+      "http": {
+        "body_contains": [
+          "ovenmediaengine"
+        ]
+      }
+    },
+    "weak": {
+      "ports": [443, 3333, 8080]
+    }
+  }
+}]}

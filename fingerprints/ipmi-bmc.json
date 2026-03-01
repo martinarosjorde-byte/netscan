@@ -1,0 +1,38 @@
+{
+  "metadata": {
+    "name": "IPMI - BMC Interfaces Pack",
+    "schema_version": "3.0",
+    "author": "Humbug Software"
+  },
+  "fingerprints": [
+
+{
+  "id": "fp_aten_ipmi_bmc",
+  "name": "ATEN IPMI / BMC Interface",
+  "category": "Server Management",
+  "os_guess": "Embedded Linux",
+  "priority": 110,
+  "signals": {
+    "strong": {
+      "http": {
+        "body_contains": [
+          "aten international co ltd",
+          "lang_login_invalid_username",
+          "lang_login_invalid_password"
+        ]
+      },
+      "ssl": {
+        "cert_common_name_contains": [
+          "ipmi"
+        ]
+      }
+    },
+    "medium": {
+      "ports": [5900]
+    },
+    "weak": {
+      "ports": [443]
+    }
+  }
+
+}]}
