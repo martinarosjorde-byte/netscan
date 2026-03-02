@@ -371,7 +371,32 @@
       "ports": [443]
     }
   }
-}
+},
+{
+      "id": "fp_tplink_legacy_router",
+      "name": "TP-Link Router (Legacy UI)",
+      "category": "Router",
+      "priority": 90,
+      "signals": {
+        "strong": {
+          "ssl": {
+            "cert_common_name_contains": ["tp-link"],
+            "cert_issuer_contains": ["tp-link"]
+          },
+          "http": {
+            "body_contains": ["/webpages/login.html"]
+          }
+        },
+        "medium": {
+          "ssl": {
+            "signature_algorithm_contains": ["sha1"]
+          }
+        },
+        "weak": {
+          "ports": [80,  1024]
+        }
+      }
+    }
 
   ]
 }

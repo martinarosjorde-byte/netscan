@@ -1,0 +1,39 @@
+{
+  "metadata": {
+    "name": "Phone Systems Pack",
+    "schema_version": "3.0",
+    "author": "Humbug Software"
+  },
+
+  "fingerprints": [
+    {
+      "id": "fp_innovaphone_ip_series",
+      "name": "Innovaphone IP-Series VoIP Gateway",
+      "category": "VoIP Gateway",
+      "priority": 60,
+      "signals": {
+        "strong": {
+          "ssl": {
+            "cert_common_name_contains": ["ip3", "ip8", "ip2"]
+          }
+        },
+        "medium": {
+          "ssl": {
+            "signature_algorithm_contains": ["sha1"]
+          }
+        },
+        "weak": {
+          "ports": [443]
+        }
+      }
+    }
+  ]
+
+}
+
+
+
+
+  
+
+     

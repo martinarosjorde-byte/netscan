@@ -147,8 +147,23 @@
       ]
     }
   }
-}
-    ,
+},
+{
+  "id": "fp_legacy_tls_device",
+  "name": "Legacy TLS Device",
+  "category": "Embedded / Legacy",
+  "priority": 30,
+  "signals": {
+    "strong": {
+      "ssl": {
+        "tls_error_contains": ["handshake_failure"]
+      }
+    },
+    "weak": {
+      "ports": [443]
+    }
+  }
+},
     {
       "id": "fp_nginx",
       "name": "Nginx Web Server",
@@ -162,8 +177,7 @@
         }
       }
     },
-
-   
+  
     {
       "id": "fp_proxmox",
       "name": "Proxmox VE",

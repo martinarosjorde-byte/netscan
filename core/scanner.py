@@ -25,7 +25,7 @@ from core.http_scanner import HTTPScanner
 from core.fingerprint import FingerprintEngine
 
 CORE_PORTS = [21, 23,80, 110, 143,443,8443, 587, 53, 139, 10443, 5900, 8080, 8443, 8006]
-HTTPS_PORTS = {443, 8443, 9443, 10443, 8006}
+HTTPS_PORTS = {443, 8443, 1024,9443, 10443, 8006}
 
 IS_WINDOWS = platform.system().lower() == "windows"
 

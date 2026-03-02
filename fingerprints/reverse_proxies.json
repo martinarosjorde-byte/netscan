@@ -166,7 +166,30 @@
           "ports": [443, 8443]
         }
       }
+    },
+    {
+  "id": "fp_nginx_proxy_manager_default",
+  "name": "Nginx Proxy Manager (Default Page)",
+  "category": "Reverse Proxy",
+  "os_guess": "Linux",
+  "priority": 120,
+  "signals": {
+    "strong": {
+      "http": {
+        "title_contains": ["default site"],
+        "body_contains": ["nginx proxy manager"]
+      }
+    },
+    "medium": {
+      "http": {
+        "server_contains": ["openresty", "nginx"]
+      }
+    },
+    "weak": {
+      "ports": [80]
     }
+  }
+}
 
   ]
 }

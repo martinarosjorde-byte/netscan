@@ -9,13 +9,13 @@ import base64
 import mmh3
 import aiohttp
 from aiohttp import ClientTimeout
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 
 
-HTTPS_PORTS = {443, 8443, 9443, 10443, 8006}
+HTTPS_PORTS = {443, 8443,1024, 9443, 10443, 8006}
 
 
 class HTTPScanner:
@@ -47,20 +47,45 @@ class HTTPScanner:
             print("[DEBUG] ===========================")
 
         # TLS probe only if we're attempting HTTPS
+        tls_probe = None
         cert_info = None
+
         if scheme == "https":
             if self.debug:
                 print("[DEBUG][HTTPS] Running dedicated TLS probe")
-            cert_info = await self._probe_tls(ip, port)
-            if self.debug:
-                print(f"[DEBUG][HTTPS] TLS Probe Result: {cert_info if cert_info else '<none>'}")
 
+            tls_probe = await self._probe_tls(ip, port)
+
+            if tls_probe.get("success"):
+                cert_info = tls_probe
+            else:
+                cert_info = None
+
+            if self.debug:
+                print(f"[DEBUG][HTTPS] TLS Probe Result: {tls_probe}")
         # Plain HTTP ports: simple path
         if scheme == "http":
             try:
                 connector = self._build_connector_http()
                 async with aiohttp.ClientSession(timeout=self.timeout, connector=connector) as session:
-                    return await self._fetch_and_parse(session, base_url, cert_info=None)
+                    result = await self._fetch_and_parse(session, base_url, cert_info=None)
+
+                                
+                if result and result.get("redirected_https_port"):
+                    new_port = result["redirected_https_port"]
+
+                    if self.debug:
+                        print(f"[DEBUG] Redirected to HTTPS on port {new_port}, rescanning as HTTPS")
+
+                    return await self.scan(ip, new_port)
+                # 🔥 If HTTP redirected to HTTPS on custom port → rescan as HTTPS
+                https_port = result.get("redirected_https_port")
+                if https_port:
+                    if self.debug:
+                        print(f"[DEBUG] Redirected to HTTPS on port {https_port}, rescanning as HTTPS")
+                    return await self.scan(ip, https_port)
+
+                return result
             except Exception as e:
                 if self.debug:
                     print(f"[DEBUG][HTTP] Failed {base_url}/ -> {e}")
@@ -77,7 +102,7 @@ class HTTPScanner:
 
         except Exception as e_modern:
             # 2) if it's not TLS at all, try HTTP-on-443
-            if self._is_wrong_version(e_modern):
+            if tls_probe and tls_probe.get("error_type") == "not_tls":
                 http_base = f"http://{ip}:{port}"
                 if self.debug:
                     print(f"[DEBUG][HTTPS] TLS looks wrong on {ip}:{port}, retrying plain HTTP: {e_modern}")
@@ -105,7 +130,32 @@ class HTTPScanner:
             except Exception as e_legacy:
                 if self.debug:
                     print(f"[DEBUG][HTTPS] Failed {base_url}/ -> {e_legacy}")
-                return None
+                # 🔥 TCP fallback peek
+                banner = await self._peek_tcp_banner(ip, port)
+
+                banner_text = None
+                if banner:
+                    try:
+                        banner_text = banner.decode(errors="ignore").strip()
+                    except Exception:
+                        banner_text = repr(banner)
+
+                if self.debug and banner_text:
+                    print(f"[DEBUG][TCP] Raw banner on {ip}:{port} -> {banner_text}")
+
+                return {
+                    "url": None,
+                    "status": None,
+                    "server": None,
+                    "title": None,
+                    "headers": {},
+                    "cert": None,
+                    "favicon_hash": None,
+                    "body_preview": None,
+                    "initial_body_preview": None,
+                    "tls_classification": tls_probe.get("error_type") if tls_probe else None,
+                    "tcp_banner": banner_text,
+                }
 
 
 
@@ -117,9 +167,14 @@ class HTTPScanner:
 
     def _build_connector_http(self) -> aiohttp.TCPConnector:
         return aiohttp.TCPConnector(ssl=False)
+
     def _is_wrong_version(self, exc: Exception) -> bool:
-    # aiohttp wraps ssl errors, so string match is practical
-        return "WRONG_VERSION_NUMBER" in str(exc).upper()
+        err = str(exc).upper()
+        return any(x in err for x in [
+            "WRONG_VERSION_NUMBER",
+            "UNKNOWN_PROTOCOL",
+            "HTTP_REQUEST",
+        ])
 
     async def _fetch_and_parse(self, session: aiohttp.ClientSession, base_url: str, cert_info: dict | None):
         # base_url already includes scheme://ip:port
@@ -130,8 +185,14 @@ class HTTPScanner:
         resp, text = await self._fetch_text(session, f"{base_url}/")
         original_text = text
 
-        redirect_resp, redirect_body, favicon_from_redirect, title_from_redirect = \
+        redirect_resp, redirect_body, favicon_from_redirect, title_from_redirect, https_port = \
             await self._follow_client_redirects(session, base_url, str(resp.url), text, resp)
+        
+        if https_port:
+            return {
+                    "redirected_https_port": https_port
+                }
+        
 
         if redirect_resp:
             resp = redirect_resp
@@ -156,13 +217,23 @@ class HTTPScanner:
             print(f"[DEBUG][{scheme_upper}] Title: {title if title else '<none>'}")
             print(f"[DEBUG][{scheme_upper}] Cert: {cert_info if cert_info else '<none>'}")
 
+        parsed = urlparse(final_url)
+
         return {
             "url": final_url,
+            "redirected_https_port": (
+                parsed.port if parsed.scheme == "https" and parsed.port and parsed.port not in HTTPS_PORTS else None
+            ),
             "status": status_code,
             "server": server,
             "title": title,
             "headers": headers,
-            "cert": cert_info,
+            "cert": cert_info if cert_info and cert_info.get("success") else None,
+            "tls_classification": (
+                "valid_tls"
+                if cert_info and cert_info.get("success")
+                else (cert_info.get("error_type") if cert_info else None)
+            ),
             "favicon_hash": favicon_hash,
             "body_preview": text[:3000],
             "initial_body_preview": original_text[:3000],
@@ -224,34 +295,32 @@ class HTTPScanner:
                     ctx.minimum_version = v
                     ctx.maximum_version = v
 
-                    # Weak cipher fallback
                     if allow_weak:
                         try:
                             ctx.set_ciphers("DEFAULT:@SECLEVEL=1")
                         except Exception:
                             pass
 
-                    # Legacy renegotiation support (OpenSSL 3)
                     op = getattr(ssl, "OP_LEGACY_SERVER_CONNECT", 0)
                     if op:
                         ctx.options |= op
 
-                    # ---- Actual TLS attempt ----
                     with socket.create_connection((ip, port), timeout=5) as sock:
                         with ctx.wrap_socket(sock, server_hostname=ip) as ssock:
 
                             der = ssock.getpeercert(binary_form=True)
                             if not der:
-                                return None
+                                return {
+                                    "success": False,
+                                    "error_type": "no_certificate",
+                                }
 
                             import hashlib
                             sha256 = hashlib.sha256(der).hexdigest()
 
-                            # Try to parse certificate
                             try:
                                 cert = x509.load_der_x509_certificate(der, default_backend())
 
-                                # Common Name
                                 try:
                                     common_name = cert.subject.get_attributes_for_oid(
                                         x509.NameOID.COMMON_NAME
@@ -259,7 +328,6 @@ class HTTPScanner:
                                 except Exception:
                                     common_name = None
 
-                                # Issuer CN
                                 try:
                                     issuer_cn = cert.issuer.get_attributes_for_oid(
                                         x509.NameOID.COMMON_NAME
@@ -267,7 +335,6 @@ class HTTPScanner:
                                 except Exception:
                                     issuer_cn = None
 
-                                # SAN
                                 try:
                                     ext = cert.extensions.get_extension_for_class(
                                         x509.SubjectAlternativeName
@@ -276,26 +343,22 @@ class HTTPScanner:
                                 except Exception:
                                     san_list = []
 
-                                # Serial number
                                 try:
                                     serial_number = format(cert.serial_number, "x")
                                 except Exception:
                                     serial_number = None
 
-                                # Key size
                                 try:
                                     key_size = cert.public_key().key_size
                                 except Exception:
                                     key_size = None
 
-                                # Signature algorithm
                                 signature_algorithm = (
                                     cert.signature_hash_algorithm.name
                                     if cert.signature_hash_algorithm
                                     else None
                                 )
 
-                                # Expiry
                                 try:
                                     expires = cert.not_valid_after_utc.isoformat()
                                 except Exception:
@@ -305,7 +368,6 @@ class HTTPScanner:
                                         expires = None
 
                             except Exception:
-                                # Fallback if cryptography fails
                                 common_name = None
                                 issuer_cn = None
                                 san_list = []
@@ -315,6 +377,7 @@ class HTTPScanner:
                                 expires = None
 
                             return {
+                                "success": True,
                                 "common_name": common_name,
                                 "issuer": issuer_cn,
                                 "san": san_list,
@@ -335,13 +398,36 @@ class HTTPScanner:
                     last_err = e
                     continue
 
-        if self.debug:
-            print(f"[DEBUG][HTTPS] TLS probe failed (all fallbacks): {last_err}")
+        # Structured failure classification
+        if last_err:
+            err_str = str(last_err).upper()
 
-        return None
-        if self.debug:
-            print(f"[DEBUG][HTTPS] TLS probe failed (all fallbacks): {last_err}")
-        return None
+            if "UNRECOGNIZED_NAME" in err_str:
+                error_type = "sni_required"
+            elif "HANDSHAKE_FAILURE" in err_str:
+                error_type = "handshake_failure"
+            elif "PROTOCOL_VERSION" in err_str:
+                error_type = "legacy_protocol_only"
+            elif "WRONG_VERSION_NUMBER" in err_str:
+                error_type = "not_tls"
+            elif "INTERNAL_ERROR" in err_str:
+                error_type = "internal_error"
+            else:
+                error_type = "unknown_tls_failure"
+
+            if self.debug:
+                print(f"[DEBUG][HTTPS] TLS probe failed: {error_type} ({last_err})")
+
+            return {
+                "success": False,
+                "error_type": error_type,
+                "raw_error": str(last_err),
+            }
+
+        return {
+            "success": False,
+            "error_type": "no_response",
+        }
 
     def _extract_title(self, html: str):
         m = re.search(r"<title>(.*?)</title>", html, re.IGNORECASE | re.DOTALL)
@@ -536,6 +622,12 @@ class HTTPScanner:
                 if location:
                     next_url = location if location.startswith("http") else urljoin(url, location)
 
+                    parsed = urlparse(next_url)
+
+                    # 🔥 If redirect is HTTPS on non-standard port → stop here and signal scan()
+                    if parsed.scheme == "https":
+                        return resp, body, None, None, parsed.port
+
                     if self.debug:
                         print(f"[DEBUG][HTTP] Header redirect -> {next_url}")
 
@@ -547,7 +639,6 @@ class HTTPScanner:
                     resp, body = await self._fetch_text(session, next_url)
                     url = str(resp.url)
                     continue
-
             # ---------------------------
             # 2️⃣ META REFRESH
             # ---------------------------
@@ -588,7 +679,7 @@ class HTTPScanner:
 
             break
 
-        return resp, body, favicon_hash, title_intermediate
+        return resp, body, favicon_hash, title_intermediate, None
 
     async def _fetch_text(self, session: aiohttp.ClientSession, url: str):
         async with session.get(url, allow_redirects=False) as resp:
