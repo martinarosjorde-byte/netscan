@@ -77,20 +77,7 @@
   }
   
 },
-{
-  "id": "fp_fortigate_cert_exact",
-  "name": "FortiGate Firewall",
-  "category": "Firewall / VPN",
-  "os_guess": "Network OS",
-  "priority": 300,
-  "signals": {
-    "strong": {
-      "ssl": {
-        "cert_common_name_contains": ["fortigate"]
-      }
-    }
-  }
-},
+
 {
   "id": "fp_fortigate_modern_ui",
   "name": "FortiGate Firewall (Modern UI)",

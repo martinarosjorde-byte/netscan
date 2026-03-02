@@ -116,7 +116,7 @@ class HTTPScanner:
         return aiohttp.TCPConnector(ssl=self._build_ssl_ctx_legacy())
 
     def _build_connector_http(self) -> aiohttp.TCPConnector:
-        return aiohttp.TCPConnector()
+        return aiohttp.TCPConnector(ssl=False)
     def _is_wrong_version(self, exc: Exception) -> bool:
     # aiohttp wraps ssl errors, so string match is practical
         return "WRONG_VERSION_NUMBER" in str(exc).upper()
@@ -131,7 +131,7 @@ class HTTPScanner:
         original_text = text
 
         redirect_resp, redirect_body, favicon_from_redirect, title_from_redirect = \
-            await self._follow_client_redirects(session, base_url, str(resp.url), text)
+            await self._follow_client_redirects(session, base_url, str(resp.url), text, resp)
 
         if redirect_resp:
             resp = redirect_resp
@@ -184,11 +184,11 @@ class HTTPScanner:
         ctx.check_hostname = False
         ctx.verify_mode = ssl.CERT_NONE
 
-        # Go older
+        # Go older (if OpenSSL allows it)
         ctx.minimum_version = ssl.TLSVersion.TLSv1
         ctx.maximum_version = ssl.TLSVersion.TLSv1_2
 
-        # Critical for old/weak appliances
+        # Allow weak ciphers for old appliances
         try:
             ctx.set_ciphers("DEFAULT:@SECLEVEL=1")
         except Exception:
@@ -197,6 +197,11 @@ class HTTPScanner:
         # Some servers choke if TLS1.3 is even offered
         if hasattr(ssl, "OP_NO_TLSv1_3"):
             ctx.options |= ssl.OP_NO_TLSv1_3
+
+        # ✅ Enable legacy renegotiation (OpenSSL 3.x)
+        op = getattr(ssl, "OP_LEGACY_SERVER_CONNECT", 0)
+        if op:
+            ctx.options |= op
 
         return ctx
 
@@ -213,23 +218,28 @@ class HTTPScanner:
         for v in versions:
             for allow_weak in (False, True):
                 try:
-                    # Use an explicit client context so we can pin min/max
                     ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
                     ctx.check_hostname = False
                     ctx.verify_mode = ssl.CERT_NONE
                     ctx.minimum_version = v
                     ctx.maximum_version = v
 
-                    # Some ancient boxes require weaker cipher policy.
-                    # Only enable this as a fallback.
+                    # Weak cipher fallback
                     if allow_weak:
                         try:
                             ctx.set_ciphers("DEFAULT:@SECLEVEL=1")
                         except Exception:
                             pass
 
+                    # Legacy renegotiation support (OpenSSL 3)
+                    op = getattr(ssl, "OP_LEGACY_SERVER_CONNECT", 0)
+                    if op:
+                        ctx.options |= op
+
+                    # ---- Actual TLS attempt ----
                     with socket.create_connection((ip, port), timeout=5) as sock:
                         with ctx.wrap_socket(sock, server_hostname=ip) as ssock:
+
                             der = ssock.getpeercert(binary_form=True)
                             if not der:
                                 return None
@@ -237,70 +247,65 @@ class HTTPScanner:
                             import hashlib
                             sha256 = hashlib.sha256(der).hexdigest()
 
-                            # Try parsing cert using cryptography (can fail on weird certs)
+                            # Try to parse certificate
                             try:
                                 cert = x509.load_der_x509_certificate(der, default_backend())
 
-                                # CN
-                                common_name = None
+                                # Common Name
                                 try:
                                     common_name = cert.subject.get_attributes_for_oid(
                                         x509.NameOID.COMMON_NAME
                                     )[0].value
                                 except Exception:
-                                    pass
+                                    common_name = None
 
                                 # Issuer CN
-                                issuer_cn = None
                                 try:
                                     issuer_cn = cert.issuer.get_attributes_for_oid(
                                         x509.NameOID.COMMON_NAME
                                     )[0].value
                                 except Exception:
-                                    pass
+                                    issuer_cn = None
 
                                 # SAN
-                                san_list = []
                                 try:
                                     ext = cert.extensions.get_extension_for_class(
                                         x509.SubjectAlternativeName
                                     )
                                     san_list = ext.value.get_values_for_type(x509.DNSName)
                                 except Exception:
-                                    pass
+                                    san_list = []
 
-                                # Serial number (can be 0 / negative on broken certs)
+                                # Serial number
                                 try:
                                     serial_number = format(cert.serial_number, "x")
                                 except Exception:
                                     serial_number = None
 
-                                # Public key size
-                                key_size = None
+                                # Key size
                                 try:
                                     key_size = cert.public_key().key_size
                                 except Exception:
-                                    pass
+                                    key_size = None
 
+                                # Signature algorithm
                                 signature_algorithm = (
                                     cert.signature_hash_algorithm.name
                                     if cert.signature_hash_algorithm
                                     else None
                                 )
 
-                                expires = None
+                                # Expiry
                                 try:
                                     expires = cert.not_valid_after_utc.isoformat()
                                 except Exception:
-                                    # older cryptography versions
                                     try:
                                         expires = cert.not_valid_after.isoformat()
                                     except Exception:
                                         expires = None
 
                             except Exception:
-                                # cryptography failed (e.g., serial 0 warning now, exception later)
-                                # Fallback to minimal info from stdlib (no SAN parsing here)
+                                # Fallback if cryptography fails
                                 common_name = None
                                 issuer_cn = None
                                 san_list = []
@@ -320,9 +325,8 @@ class HTTPScanner:
                                 "sha256": sha256,
                                 "tls_version": ssock.version(),
                                 "cipher": ssock.cipher(),
-                                # Useful for debugging why it worked
                                 "tls_probe": {
-                                    "attempt_version": str(v.name),
+                                    "attempt_version": v.name,
                                     "allow_weak_ciphers": allow_weak,
                                 },
                             }
@@ -331,6 +335,10 @@ class HTTPScanner:
                     last_err = e
                     continue
 
+        if self.debug:
+            print(f"[DEBUG][HTTPS] TLS probe failed (all fallbacks): {last_err}")
+
+        return None
         if self.debug:
             print(f"[DEBUG][HTTPS] TLS probe failed (all fallbacks): {last_err}")
         return None
@@ -342,14 +350,28 @@ class HTTPScanner:
         return re.sub(r"\s+", " ", m.group(1)).strip()
 
     def _extract_meta_refresh_url(self, html: str):
-        m = re.search(
-            r'http-equiv=["\']refresh["\'][^>]*content=["\'][^"\']*url\s*=\s*([^"\'>]+)',
-            html, re.IGNORECASE
-        )
-        if not m:
-            m = re.search(r'URL\s*=\s*([^"\'>]+)', html, re.IGNORECASE)
-        return m.group(1).strip() if m else None
+        """
+        Only match real meta refresh tags like:
+        <meta http-equiv="refresh" content="1;url=/login">
+        """
 
+        pattern = re.compile(
+            r'<meta[^>]+http-equiv=["\']refresh["\'][^>]+content=["\'][^"\']*url\s*=\s*([^"\'>]+)',
+            re.IGNORECASE
+        )
+
+        m = pattern.search(html)
+        if not m:
+            return None
+
+        value = m.group(1).strip()
+
+        # Reject JS expressions
+        if any(x in value for x in ["+", "window.", "document.", "location."]):
+            return None
+
+        return value
+    
     def _debug_html_preview(self, url: str, html: str):
         scheme = "HTTPS" if url.startswith("https") else "HTTP"
         print(f"[DEBUG][{scheme}] HTML preview from {url}:")
@@ -453,88 +475,123 @@ class HTTPScanner:
 
     def _extract_js_redirect_url(self, html: str):
         """
-        Detect very common redirect patterns:
-        - parent.parent.document.location = '...'
-        - top.location.href = '...'
-        - window.location = '...'
-        - location.href = '...'
-        - document.location = '...'
-        Returns the URL/path string or None.
+        Only match simple literal redirects like:
+        window.location = '...'
+        document.location.href = "..."
+        parent.location = '...'
         """
+
         patterns = [
             r"""parent(?:\.\w+)*\.document\.location(?:\.href)?\s*=\s*['"]([^'"]+)['"]""",
             r"""top\.location\.href\s*=\s*['"]([^'"]+)['"]""",
             r"""window\.location(?:\.href)?\s*=\s*['"]([^'"]+)['"]""",
-            r"""location\.href\s*=\s*['"]([^'"]+)['"]""",
             r"""document\.location(?:\.href)?\s*=\s*['"]([^'"]+)['"]""",
+            r"""\blocation\.href\s*=\s*['"]([^'"]+)['"]""",
             r"""\blocation\s*=\s*['"]([^'"]+)['"]""",
         ]
+
         for pat in patterns:
             m = re.search(pat, html, re.IGNORECASE)
             if m:
-                return m.group(1).strip()
-        return None
+                value = m.group(1).strip()
 
-    async def _follow_client_redirects(self, session, base_url: str, current_url: str, html: str, max_hops: int = 5):
+                # Reject dynamic JS expressions
+                if any(x in value for x in ["+", "window.", "document.", "location."]):
+                    continue
+
+                return value
+
+        return None
+    
+
+    async def _follow_client_redirects(
+        self,
+        session,
+        base_url: str,
+        current_url: str,
+        html: str,
+        resp,
+        max_hops: int = 5
+    ):
         """
-        Follow meta-refresh and simple JS redirects a couple of times.
-        Loop-safe: stops if a URL repeats or redirect points to same page.
-        Returns: (final_resp, final_html, favicon_hash_from_intermediate, title_from_intermediate)
+        Follow:
+        - HTTP 30x header redirects
+        - meta refresh
+        - simple JS redirects
         """
+
         url = current_url
         body = html
-        resp = None
         favicon_hash = None
         title_intermediate = None
-
-        def _norm(u: str) -> str:
-            # normalize tiny differences that create loops
-            u = u.strip()
-            if u.endswith("/"):
-                return u[:-1]
-            return u
-
-        visited = set([_norm(url)])
+        visited = set([url])
 
         for _ in range(max_hops):
+
+            # ---------------------------
+            # 1️⃣ HTTP HEADER REDIRECT
+            # ---------------------------
+            if resp.status in (301, 302, 303, 307, 308):
+                location = resp.headers.get("Location")
+                if location:
+                    next_url = location if location.startswith("http") else urljoin(url, location)
+
+                    if self.debug:
+                        print(f"[DEBUG][HTTP] Header redirect -> {next_url}")
+
+                    if next_url in visited:
+                        break
+
+                    visited.add(next_url)
+
+                    resp, body = await self._fetch_text(session, next_url)
+                    url = str(resp.url)
+                    continue
+
+            # ---------------------------
+            # 2️⃣ META REFRESH
+            # ---------------------------
             meta = self._extract_meta_refresh_url(body)
-            js = self._extract_js_redirect_url(body)
+            if meta:
+                next_url = meta if meta.startswith("http") else urljoin(url, meta)
 
-            next_target = meta or js
-            if not next_target:
-                break
-
-            # Track favicon/title from intermediate pages
-            if favicon_hash is None:
-                favicon_hash = await self._fetch_favicon_hash(session, base_url, body)
-            if title_intermediate is None:
-                title_intermediate = self._extract_title(body)
-
-            next_url = next_target if next_target.startswith("http") else urljoin(url, next_target)
-            next_url_norm = _norm(next_url)
-
-            # stop if it redirects to itself or a loop
-            if next_url_norm == _norm(url) or next_url_norm in visited:
                 if self.debug:
-                    scheme = "HTTPS" if next_url.startswith("https") else "HTTP"
-                    kind = "Meta" if meta else "JS"
-                    print(f"[DEBUG][{scheme}] {kind} redirect loop detected -> {next_url} (stopping)")
-                break
+                    print(f"[DEBUG][HTTP] Meta redirect -> {next_url}")
 
-            visited.add(next_url_norm)
+                if next_url in visited:
+                    break
 
-            if self.debug:
-                scheme = "HTTPS" if next_url.startswith("https") else "HTTP"
-                kind = "Meta" if meta else "JS"
-                print(f"[DEBUG][{scheme}] {kind} redirect -> {next_url}")
+                visited.add(next_url)
 
-            resp, body = await self._fetch_text(session, next_url)
-            url = str(resp.url)
+                resp, body = await self._fetch_text(session, next_url)
+                url = str(resp.url)
+                continue
+
+            # ---------------------------
+            # 3️⃣ JS REDIRECT
+            # ---------------------------
+            js = self._extract_js_redirect_url(body)
+            if js:
+                next_url = js if js.startswith("http") else urljoin(url, js)
+
+                if self.debug:
+                    print(f"[DEBUG][HTTP] JS redirect -> {next_url}")
+
+                if next_url in visited:
+                    break
+
+                visited.add(next_url)
+
+                resp, body = await self._fetch_text(session, next_url)
+                url = str(resp.url)
+                continue
+
+            break
 
         return resp, body, favicon_hash, title_intermediate
-    
+
     async def _fetch_text(self, session: aiohttp.ClientSession, url: str):
-        async with session.get(url, allow_redirects=True) as resp:
+        async with session.get(url, allow_redirects=False) as resp:
             text = await resp.text(errors="ignore")
 
             if self.debug:

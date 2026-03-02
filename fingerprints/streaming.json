@@ -32,4 +32,26 @@
       "ports": [443, 3333, 8080]
     }
   }
-}]}
+},
+{
+  "id": "fp_lg_webos_cast",
+  "name": "LG WebOS TV (Cast Service)",
+  "category": "IoT / Smart TV",
+  "os_guess": "Embedded Linux",
+  "priority": 130,
+  "signals": {
+    "strong": {
+      "ssl": {
+        "cert_issuer_contains": [
+          "lge-tv-ap",
+          "lg1214 cast"
+        ]
+      }
+    },
+    "medium": {
+      "ports": [8443]
+    }
+  }
+}
+
+]}

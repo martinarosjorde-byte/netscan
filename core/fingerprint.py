@@ -6,6 +6,7 @@ import os
 import sys
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
+from core.fingerprint_loader import FingerprintPackLoader
 
 
 @dataclass
@@ -64,69 +65,19 @@ class FingerprintEngine:
 
 
         if self.debug:
-            print(f"[FingerprintEngine3] Loaded {len(self.fingerprints)} fingerprints")
             print("Threshold Min:", self.threshold_min)
 
+
     def _load_db(self) -> None:
-        base_path = self.db_path
+        loader = FingerprintPackLoader(strict=False, verbose=self.debug)
+        db = loader.load(self.db_path)
 
-        if not os.path.exists(base_path):
-            self.metadata = {}
-            self.global_settings = {}
-            self.fingerprints = []
-            self.schema_version = "missing"
-            return
+        self.fingerprints = db.fingerprints
+        self.metadata = db.metadata
+        self.global_settings = db.global_settings
+        self.schema_version = db.schema_version
 
-        # If db_path is a file → load that file only
-        if os.path.isfile(base_path):
-            with open(base_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-
-            self._parse_db_data(data)
-            return
-
-        # If db_path is a directory → load all *.json
-        if os.path.isdir(base_path):
-            merged_fingerprints = []
-            merged_metadata = {}
-            merged_settings = {}
-
-            for filename in os.listdir(base_path):
-                if not filename.endswith(".json"):
-                    continue
-
-                full_path = os.path.join(base_path, filename)
-
-                with open(full_path, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-
-                if "fingerprints" in data:
-                    merged_fingerprints.extend(data.get("fingerprints", []))
-                    merged_metadata.update(data.get("metadata", {}))
-                if filename == "_engine_config.json":
-                    merged_settings.update(data.get("global_settings", {}))
-
-            self.metadata = merged_metadata
-            self.global_settings = merged_settings
-            self.fingerprints = merged_fingerprints
-            self.schema_version = str(self.metadata.get("schema_version", "3.0"))
-
-            if self.debug:
-                print(f"[FingerprintEngine3] Loaded {len(self.fingerprints)} fingerprints from directory")
-                
-            return
-
-        self.fingerprints = []
-        self.schema_version = "unknown"
-
-
-    def _parse_db_data(self, data: Dict[str, Any]) -> None:
-        if isinstance(data, dict) and "fingerprints" in data:
-            self.metadata = data.get("metadata", {})
-            self.global_settings = data.get("global_settings", {})
-            self.fingerprints = data.get("fingerprints", [])
-            self.schema_version = str(self.metadata.get("schema_version", "3.0"))
-            return
+        
     # -------------------------
     # Public API
     # -------------------------

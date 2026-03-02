@@ -15,7 +15,7 @@
       "signals": {
         "strong": {
           "http": {
-            "title_contains": ["vivotek", "vivotek nvr"]
+            "title_contains": ["vivotek"]
           },
           "ssl": {
             "cert_common_name_contains": ["vivotek"],
@@ -34,24 +34,25 @@
     },
 
     {
-      "id": "fp_hikvision_device",
-      "name": "Hikvision Camera / NVR",
-      "category": "Camera / NVR",
+      "id": "fp_hikvision_webui",
+      "name": "Hikvision IP Camera / NVR",
+      "category": "Surveillance / CCTV",
       "os_guess": "Embedded Linux",
-      "priority": 95,
+      "priority": 150,
       "signals": {
         "strong": {
           "http": {
-            "title_contains": ["hikvision"]
-          },
-          "ssl": {
-            "cert_common_name_contains": ["hikvision"],
-            "cert_issuer_contains": ["hikvision"]
+            "body_contains": [
+              "main_plugin_multiVideoActiveX",
+              "Common/static/theme/theme.css",
+              "vueDepends.js",
+              "hikvision"
+            ]
           }
         },
         "medium": {
           "http": {
-            "body_contains": ["doc/page/login.asp", "hikvision"]
+            "url_contains": ["/doc/index.html"]
           }
         },
         "weak": {
@@ -61,24 +62,24 @@
     },
 
     {
-      "id": "fp_dahua_device",
-      "name": "Dahua Camera / NVR",
-      "category": "Camera / NVR",
+      "id": "fp_dahua_webui",
+      "name": "Dahua IP Camera / NVR",
+      "category": "Surveillance / CCTV",
       "os_guess": "Embedded Linux",
-      "priority": 95,
+      "priority": 150,
       "signals": {
         "strong": {
           "http": {
-            "title_contains": ["dahua"]
-          },
-          "ssl": {
-            "cert_common_name_contains": ["dahua"],
-            "cert_issuer_contains": ["dahua"]
+            "body_contains": [
+              "Dahua Technology",
+              "webplugin.exe",
+              "rpcCore.js"
+            ]
           }
         },
         "medium": {
-          "http": {
-            "body_contains": ["web service", "dahua"]
+          "ssl": {
+            "cert_issuer_contains": ["dahua"]
           }
         },
         "weak": {
@@ -88,23 +89,24 @@
     },
 
     {
-      "id": "fp_axis_camera",
-      "name": "Axis IP Camera",
-      "category": "Camera",
+      "id": "fp_uniview_webui",
+      "name": "Uniview (UNV) IP Camera",
+      "category": "Surveillance / CCTV",
       "os_guess": "Embedded Linux",
-      "priority": 90,
+      "priority": 145,
       "signals": {
         "strong": {
           "http": {
-            "title_contains": ["axis"]
-          },
-          "ssl": {
-            "cert_common_name_contains": ["axis"]
+            "body_contains": [
+              "Uniview",
+              "EZView",
+              "NetSurveillance"
+            ]
           }
         },
         "medium": {
-          "http": {
-            "server_contains": ["axis"]
+          "ssl": {
+            "cert_issuer_contains": ["uniview"]
           }
         },
         "weak": {
@@ -114,18 +116,21 @@
     },
 
     {
-      "id": "fp_uniview_device",
-      "name": "Uniview Camera / NVR",
-      "category": "Camera / NVR",
+      "id": "fp_axis_camera",
+      "name": "Axis IP Camera",
+      "category": "Surveillance / CCTV",
       "os_guess": "Embedded Linux",
-      "priority": 90,
+      "priority": 160,
       "signals": {
         "strong": {
           "http": {
-            "title_contains": ["uniview"]
-          },
+            "server_contains": ["axis"],
+            "body_contains": ["AXIS", "axis-cgi"]
+          }
+        },
+        "medium": {
           "ssl": {
-            "cert_common_name_contains": ["uniview"]
+            "cert_common_name_contains": ["axis"]
           }
         },
         "weak": {
@@ -136,23 +141,74 @@
 
     {
       "id": "fp_reolink_camera",
-      "name": "Reolink Camera",
-      "category": "Camera",
+      "name": "Reolink IP Camera",
+      "category": "Surveillance / CCTV",
       "os_guess": "Embedded Linux",
-      "priority": 85,
+      "priority": 140,
       "signals": {
         "strong": {
           "http": {
-            "title_contains": ["reolink"]
+            "body_contains": [
+              "Reolink",
+              "reolink.js"
+            ]
           }
         },
         "medium": {
           "ssl": {
-            "cert_common_name_contains": ["reolink"]
+            "cert_issuer_contains": ["reolink"]
           }
         },
         "weak": {
           "ports": [80, 443]
+        }
+      }
+    },
+
+    {
+      "id": "fp_synology_surveillance_station",
+      "name": "Synology Surveillance Station",
+      "category": "Surveillance / NAS",
+      "os_guess": "Linux",
+      "priority": 155,
+      "signals": {
+        "strong": {
+          "http": {
+            "body_contains": [
+              "SurveillanceStation",
+              "SYNO.SDS",
+              "synology"
+            ]
+          }
+        },
+        "medium": {
+          "ssl": {
+            "cert_issuer_contains": ["synology"]
+          }
+        },
+        "weak": {
+          "ports": [5000, 5001]
+        }
+      }
+    },
+
+    {
+      "id": "fp_generic_onvif_camera",
+      "name": "Generic ONVIF Camera",
+      "category": "Surveillance / CCTV",
+      "os_guess": "Embedded Linux",
+      "priority": 100,
+      "signals": {
+        "medium": {
+          "http": {
+            "body_contains": [
+              "onvif",
+              "/onvif/device_service"
+            ]
+          }
+        },
+        "weak": {
+          "ports": [80, 8899]
         }
       }
     }
