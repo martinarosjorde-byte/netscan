@@ -53,7 +53,9 @@ def render_table(subnet, results):
     table = Table(
         title=f"[bold cyan]Results for {subnet}[/bold cyan]",
         header_style="bold white",
-        show_lines=False
+        row_styles=["none", "dim"],
+        expand=True,
+        show_lines=True
     )
 
     # -----------------------------
