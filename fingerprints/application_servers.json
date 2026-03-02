@@ -56,6 +56,30 @@
       "ports": [443]
     }
   }
+},
+{
+  "id": "fp_mail_dovecot_stack",
+  "name": "Mail Server (Dovecot + openresty)",
+  "category": "Mail Server",
+  "priority": 80,
+  "signals": {
+    "strong": {
+      "pop3": {
+        "banner_contains": ["dovecot"]
+      },
+      "imap": {
+        "banner_contains": ["dovecot"]
+      }
+    },
+    "medium": {
+      "http": {
+        "server_contains": ["openresty"]
+      }
+    },
+    "weak": {
+      "ports": [587]
+    }
+  }
 }
   ]
 }

@@ -396,7 +396,80 @@
           "ports": [80,  1024]
         }
       }
+    },
+    {
+  "id": "fp_fortigate_acme_stub",
+  "name": "Fortinet FortiGate (HTTP ACME Stub)",
+  "category": "Firewall",
+  "signals": {
+    "strong": {
+      "http": {
+        "body_contains": ["ACME Access Only"]
+      }
     }
+  }
+},
+{
+  "id": "fp_tropos_router",
+  "name": "Tropos Router",
+  "category": "Industrial Router",
+  "priority": 100,
+  "signals": {
+    "strong": {
+      "ssl": {
+        "cert_common_name_contains": ["tropos router"],
+        "cert_issuer_contains": ["tropos"]
+      }
+    },
+    "medium": {
+      "http": {
+        "title_contains": ["tropos configuration utility"]
+      }
+    }
+  }
+},
+{
+  "id": "fp_huawei_enterprise_network",
+  "name": "Huawei Enterprise Network Device",
+  "category": "Enterprise Network Device",
+  "priority": 90,
+  "signals": {
+    "strong": {
+      "ssl": {
+        "cert_issuer_contains": ["huawei enterprise network product ca"]
+      }
+    },
+    "medium": {
+      "ssl": {
+        "cert_common_name_contains": [".huawei.com"]
+      },
+      "http": {
+        "body_contains": ["loginSimple.html"]
+      }
+    }
+  }
+},
+{
+  "id": "fp_teltonika_router",
+  "name": "Teltonika Router",
+  "category": "Industrial Router",
+  "priority": 85,
+  "signals": {
+    "strong": {
+      "http": {
+        "body_contains": ["tlt_networks_logo.svg"]
+      },
+      "misc": {
+        "favicon_hashes": [-94393354]
+      }
+    },
+    "medium": {
+      "http": {
+        "body_contains": ["javascript required!", "brand/colors.css"]
+      }
+    }
+  }
+}
 
   ]
 }

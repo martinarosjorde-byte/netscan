@@ -387,8 +387,9 @@ class FingerprintEngine:
         http = bucket_signals.get("http") or {}
         for k in ("title_contains", "body_contains", "header_contains",
                 "cookie_contains", "server_contains"):
-            if http.get(k):
-                count += 1
+            vals = http.get(k) or []
+            if isinstance(vals, list):
+                count += len(vals)
 
         # SSL groups
         ssl = bucket_signals.get("ssl") or {}

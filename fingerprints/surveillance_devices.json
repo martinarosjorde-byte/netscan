@@ -211,7 +211,73 @@
           "ports": [80, 8899]
         }
       }
+    },
+    {
+  "id": "fp_oem_cctv_spa",
+  "name": "OEM CCTV / DVR Web UI",
+  "category": "Surveillance",
+  "priority": 70,
+  "signals": {
+    "strong": {
+      "http": {
+        "title_equals": ["WEB"],
+        "body_contains": [
+          "browserJudge.js",
+          "IEpolyfill.min.js",
+          "qrcode.js"
+        ]
+      }
+    },
+    "medium": {
+      "http": {
+        "body_regex": [
+          "style/color\\.[0-9]+\\.less"
+        ]
+      }
     }
+  }
+},
+{
+  "id": "fp_oem_cctv_angular_login",
+  "name": "OEM CCTV / DVR (Angular Login)",
+  "category": "Surveillance",
+  "priority": 75,
+  "signals": {
+    "strong": {
+      "http": {
+        "body_contains": [
+          "/doc/page/login.asp",
+          "ng-controller=\"loginController\"",
+          "ng-model=\"username\""
+        ]
+      },
+      "misc": {
+        "favicon_hashes": [-1093037846]
+      }
+    }
+  }
+},
+{
+  "id": "fp_oem_cctv_videomanage",
+  "name": "OEM CCTV / DVR (VideoManageSystem)",
+  "category": "Surveillance",
+  "priority": 80,
+  "signals": {
+    "strong": {
+      "http": {
+        "body_contains": [
+          "text.videomanagesystem",
+          "cgi-bin/main-cgi",
+          "/style/index_",
+          "login_body"
+        ]
+      },
+      "misc": {
+        "favicon_hashes": [-533420679]
+      }
+    }
+  }
+}
 
   ]
 }

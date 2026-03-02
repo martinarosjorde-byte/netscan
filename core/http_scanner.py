@@ -9,13 +9,14 @@ import base64
 import mmh3
 import aiohttp
 from aiohttp import ClientTimeout
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urldefrag, urljoin, urlparse
+
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 
 
-HTTPS_PORTS = {443, 8443,1024, 9443, 10443, 8006}
+HTTPS_PORTS = {443, 8443,1024, 9443, 10443,4443, 8006}
 
 
 class HTTPScanner:
@@ -26,9 +27,11 @@ class HTTPScanner:
         self.html_preview_chars = html_preview_chars
 
 
-    async def scan(self, ip: str, port: int):
-        is_https_port = port in HTTPS_PORTS
-        scheme = "https" if is_https_port else "http"
+    async def scan(self, ip: str, port: int, force_https: bool = False):
+        if force_https:
+            scheme = "https"
+        else:
+            scheme = "https" if port in HTTPS_PORTS else "http"
         base_url = f"{scheme}://{ip}:{port}"
 
         rdns = None
@@ -77,7 +80,7 @@ class HTTPScanner:
                     if self.debug:
                         print(f"[DEBUG] Redirected to HTTPS on port {new_port}, rescanning as HTTPS")
 
-                    return await self.scan(ip, new_port)
+                    return await self.scan(ip, new_port, force_https=True)
                 # 🔥 If HTTP redirected to HTTPS on custom port → rescan as HTTPS
                 https_port = result.get("redirected_https_port")
                 if https_port:
@@ -216,6 +219,8 @@ class HTTPScanner:
             scheme_upper = "HTTPS" if final_url.startswith("https") else "HTTP"
             print(f"[DEBUG][{scheme_upper}] Title: {title if title else '<none>'}")
             print(f"[DEBUG][{scheme_upper}] Cert: {cert_info if cert_info else '<none>'}")
+            if favicon_hash:
+                print(f"[DEBUG][{scheme_upper}] Favicon Hash: {favicon_hash}")
 
         parsed = urlparse(final_url)
 
@@ -625,12 +630,16 @@ class HTTPScanner:
                     parsed = urlparse(next_url)
 
                     # 🔥 If redirect is HTTPS on non-standard port → stop here and signal scan()
-                    if parsed.scheme == "https":
+                    current_parsed = urlparse(url)
+
+                    if current_parsed.scheme == "http" and parsed.scheme == "https":
                         return resp, body, None, None, parsed.port
 
                     if self.debug:
                         print(f"[DEBUG][HTTP] Header redirect -> {next_url}")
 
+                    
+                    next_url, _ = urldefrag(next_url)
                     if next_url in visited:
                         break
 

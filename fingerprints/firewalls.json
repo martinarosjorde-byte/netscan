@@ -77,6 +77,27 @@
   }
   
 },
+{
+  "id": "fp_dlink_router_webui",
+  "name": "D-Link Router",
+  "category": "Router",
+  "priority": 95,
+  "signals": {
+    "strong": {
+      "http": {
+        "title_contains": ["d-link"],
+        "body_contains": [
+          "/image/dlink-favicon.ico",
+          "/info/Login.html",
+          "gitbranch:"
+        ]
+      }
+    },
+    "medium": {
+      "ports": [80]
+    }
+  }
+},
 
 {
   "id": "fp_fortigate_modern_ui",
