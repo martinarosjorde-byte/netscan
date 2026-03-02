@@ -288,6 +288,62 @@
         }
       }
     },
+
+    {
+  "id": "fp_hpe_procurve_ehttp",
+  "name": "HPE ProCurve Switch (Legacy Web UI / eHTTP)",
+  "category": "Network Device / Switch",
+  "os_guess": "Network OS",
+  "priority": 140,
+  "signals": {
+    "strong": {
+      "http": {
+        "server_contains": ["ehttp"],
+        "body_contains": [
+          "sessionid",
+          "delete_cookie",
+          "nhome.html",
+          "parent.parent.document.location"
+        ]
+      }
+    },
+    "medium": {
+      "device": {
+        "mac_vendor_contains": ["hewlettp", "hp"]
+      }
+    },
+    "weak": {
+      "ports": [80,22,23]
+    }
+  },
+  "negative_signals": {
+    "http": {
+      "title_contains": ["ilo", "integrated lights-out"]
+    }
+  }
+},
+    {
+  "id": "fp_cisco_ios_https",
+  "name": "Cisco IOS (HTTPS Server)",
+  "category": "Network Device",
+  "os_guess": "Network OS",
+  "priority": 140,
+  "signals": {
+    "strong": {
+      "http": {
+        "server_contains": ["cisco-ios"]
+      }
+    },
+    "medium": {
+      "ssl": {
+        "cert_common_name_contains": ["ios-self-signed-certificate"]
+      }
+    },
+    "weak": {
+      "ports": [443,22, 23]
+    }
+  }
+},
     {
   "id": "fp_teltonika_rut_series",
   "name": "Teltonika RUT Series Router",
