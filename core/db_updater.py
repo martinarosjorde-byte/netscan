@@ -1,3 +1,4 @@
+# file: core/db_updater.py
 from __future__ import annotations
 
 import requests
@@ -17,6 +18,15 @@ class FingerprintDBUpdater:
         self.local_dir.mkdir(parents=True, exist_ok=True)
 
         self.last_check_file = self.local_dir / ".last_update_check"
+
+    # ---------------------------------------------------------
+    # Check if fingerprints exist locally
+    # ---------------------------------------------------------
+
+    def has_local_fingerprints(self):
+
+        json_files = list(self.local_dir.glob("*.json"))
+        return len(json_files) > 0
 
     # ---------------------------------------------------------
     # Should we check for updates?
@@ -97,7 +107,7 @@ class FingerprintDBUpdater:
     def check_updates(self):
 
         if not self.should_check():
-            return None  # skip check
+            return None
 
         updates = []
 
@@ -120,13 +130,37 @@ class FingerprintDBUpdater:
         return updates
 
     # ---------------------------------------------------------
-    # Download pack
+    # Notify user about updates
+    # ---------------------------------------------------------
+
+    def check_and_notify(self):
+
+        updates = self.check_updates()
+
+        if updates is None:
+            return
+
+        if len(updates) == 0:
+            return
+
+        print("")
+        print("Fingerprint database update available.")
+        print(f"{len(updates)} fingerprint files have updates.")
+        print("")
+        print("Run:")
+        print("  netscan --update-fingerprints")
+        print("")
+
+    # ---------------------------------------------------------
+    # Download fingerprint pack
     # ---------------------------------------------------------
 
     def download_pack(self, filename, sha):
 
         url = f"{self.remote_base_url}/{filename}"
         local_path = self.local_dir / filename
+
+        print("Downloading:", filename)
 
         try:
 
