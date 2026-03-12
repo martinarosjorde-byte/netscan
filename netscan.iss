@@ -19,11 +19,6 @@ Name: "{commonappdata}\NetScan"
 [Files]
 Source: "dist\netscan\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs
 
-; Default DB in install folder
-Source: "fingerprints\fingerprints.json"; DestDir: "{app}\fingerprints"; Flags: onlyifdoesntexist
-
-; ALSO seed ProgramData (this is what EXE actually uses)
-Source: "fingerprints\fingerprints.json"; DestDir: "{commonappdata}\NetScan"; Flags: onlyifdoesntexist
 
 
 [Icons]
