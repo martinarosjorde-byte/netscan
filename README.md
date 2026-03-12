@@ -1,27 +1,35 @@
-# NetScan 
+# NetScan
 
-NetScan is a asynchronous network discovery
-tool built for internal enterprise environments.
+**NetScan** is an asynchronous network discovery and asset
+identification tool written in Python.
 
-It combines ICMP discovery, ARP inspection, TCP scanning, banner
-grabbing, and asset fingerprinting.
+It combines:
+
+-   ICMP host discovery
+-   ARP inspection
+-   TCP port scanning
+-   banner grabbing
+-   HTTP analysis
+-   device fingerprinting
+
+NetScan is part of the **NetTools Portfolio** by **Humbug Software**.
 
 ------------------------------------------------------------------------
 
-## 🚀 Overview
+# Features
 
-NetScan is part of the **NetTools Portfolio** by Humbug
-Software.
-
-It is designed for:
-
--   Internal network discovery
--   Asset identification
--   Exposure detection
--   Rapid reconnaissance
--   Lab and infrastructure visibility
-
-Built for Windows environments but portable to other platforms.
+-   Asynchronous high-speed scanning
+-   Multi-target scanning (hosts, ranges, subnets)
+-   ICMP discovery
+-   ARP inspection
+-   TCP port scanning
+-   HTTP title and server detection
+-   SSH banner grabbing
+-   SMTP / FTP / POP3 / IMAP detection
+-   MAC vendor lookup
+-   Device fingerprinting engine
+-   JSON / CSV export
+-   Rich CLI output
 
 ------------------------------------------------------------------------
 
@@ -31,196 +39,80 @@ Built for Windows environments but portable to other platforms.
   <img src="screenshot.png" alt="NetScan Screenshot" width="900">
 </p>
 
+# Usage
 
+Run from the project root:
 
-## ✨ Features
+    python -m cli.cli
 
--   ⚡ Asynchronous high-speed scanning
--   🌐 Multi-subnet scanning
--   📄 Subnets from file input
--   📡 ICMP sweep (host discovery)
--   🖧 ARP cache inspection (local networks)
--   🔌 TCP port scanning
--   🌍 HTTP banner & title grabbing
--   🔐 SSH banner grabbing
--   🏷 MAC address vendor lookup (OUI database)
--   🧠 Basic OS fingerprinting (heuristics)
--   📊 Rich terminal output with colored results
--   📁 JSON export
--   📄 CSV export
--   🔍 Automatic local subnet detection
--   🧩 Modular architecture (scanner / renderer / exporter separation)
+If no target is provided NetScan scans the detected local `/24` network.
 
 ------------------------------------------------------------------------
 
-## 🧱 Architecture
+# Supported Target Formats
 
-    netscan/
-    │
-    ├── core/        # Scanning engine
-    ├── cli/         # CLI interface
-    ├── utils.py     # Helper functions
+Single host:
 
-Designed for reuse across:
+    netscan 10.1.1.10
 
--   CLI
--   GUI
--   Future API integrations
+CIDR subnet:
 
-------------------------------------------------------------------------
+    netscan 10.1.1.0/24
 
-## 🖥 Usage
+IP range:
 
-Run from project root:
+    netscan 10.1.1.10-10.1.1.50
 
-``` bash
-python -m cli.cli
-```
+Mixed targets:
 
-If no subnet is provided, NetScan automatically scans the detected local
-`/24` network.
+    netscan 10.1.1.0/24 10.2.2.10 10.3.3.10-10.3.3.20
 
 ------------------------------------------------------------------------
 
-### Scan Single Subnet
+# Export Results
 
-``` bash
-python -m cli.cli 10.1.1.0/24
-```
+JSON:
 
-------------------------------------------------------------------------
+    python -m cli.cli 10.1.1.0/24 --json results.json
 
-### Scan Multiple Subnets
+CSV:
 
-``` bash
-python -m cli.cli 10.1.1.0/24 10.2.2.0/24
-```
+    python -m cli.cli 10.1.1.0/24 --csv results.csv
 
 ------------------------------------------------------------------------
 
-### Scan Subnets From File
+# Installation
 
-Create `networks.txt`:
+Clone the repository:
 
-    10.1.1.0/24
-    10.2.2.0/24
-
-Then run:
-
-``` bash
-python -m cli.cli --file networks.txt
-```
-
-------------------------------------------------------------------------
-
-### Export to JSON
-
-``` bash
-python -m cli.cli 10.1.1.0/24 --json output.json
-```
-
-------------------------------------------------------------------------
-
-### Export to CSV
-
-``` bash
-python -m cli.cli 10.1.1.0/24 --csv output.csv
-```
-
-------------------------------------------------------------------------
-
-## 🔎 Default Ports Scanned
-
-By default the scanner checks:
-
--   22 --- SSH
--   80 --- HTTP
--   443 --- HTTPS
--   445 --- SMB
--   3389 --- RDP
-
-These can be modified in:
-
-    core/scanner.py
-
-------------------------------------------------------------------------
-
-## 📊 Output
-
-The CLI output includes:
-
--   IP address
--   Hostname (reverse DNS)
--   MAC address
--   Vendor (OUI lookup)
--   OS guess (heuristic)
--   Open ports
--   HTTP server header
--   HTTP page title
--   SSH banner
-
-Summary statistics are displayed at the end of each subnet scan.
-
-------------------------------------------------------------------------
-
-## ⚙ Installation
-
-Clone repository:
-
-``` bash
-git clone https://github.com/martinarosjorde-byte/netscan
-cd netscan
-```
+    git clone https://github.com/martinarosjorde-byte/netscan
+    cd netscan
 
 Install dependencies:
 
-``` bash
-pip install -r requirements.txt
-```
+    pip install -r requirements.txt
 
 ------------------------------------------------------------------------
 
-## 📦 Requirements
+# Build Executable
 
--   Python 3.10+
--   rich
--   manuf
-
-------------------------------------------------------------------------
-
-## 🪟 Build Windows Executable
-
-To compile standalone CLI executable:
-
-From project root:
-pip install pyinstaller
-``` bash
-pyinstaller --onefile --name netscan --collect-all manuf cli/cli.py
-
-```
-
-## 🖥 Supported Platforms
-
-- Windows 10 / 11
-- Linux (Ubuntu, Debian, etc.)
-- WSL
-- macOS (experimental)
-
-Note: ARP inspection requires local subnet scanning.
+    pip install pyinstaller
+    pyinstaller --onefile --name netscan --collect-all manuf cli/cli.py
 
 ------------------------------------------------------------------------
 
-## ⚠ Disclaimer
+# Disclaimer
 
-NetScan is intended for authorized internal network
-environments only.
+NetScan is a network discovery tool intended for authorized
+environments.
 
-Do not scan networks without proper authorization.
+Only scan systems and networks you own or have permission to test.
+
+Unauthorized scanning may violate laws and regulations.
 
 ------------------------------------------------------------------------
 
-## 🏢 About
+# Author
 
-Made by Humbug Software\
-Part of the NetTools Portfolio\
-Author: Martin Røsjorde
+Martin Røsjorde\
+Humbug Software

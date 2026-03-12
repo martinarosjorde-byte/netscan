@@ -450,6 +450,32 @@
   }
 },
 {
+  "id": "fp_mikrotik_routeros_web",
+  "name": "MikroTik RouterOS (Web UI)",
+  "category": "Network Device",
+  "os_guess": "RouterOS",
+  "priority": 140,
+  "signals": {
+    "strong": {
+      "http": {
+        "title_contains": ["routeros router configuration page"]
+      },
+      "misc": {
+        "favicon_hashes": [-1043268776]
+      }
+    },
+    "medium": {
+      "device": {
+        "mac_vendor_contains": ["mikrotik"]
+      }
+    },
+    "weak": {
+      "ports": [8080]
+    }
+  }
+}
+,
+{
   "id": "fp_teltonika_router",
   "name": "Teltonika Router",
   "category": "Industrial Router",
