@@ -325,19 +325,25 @@ Supported formats inside the file:
     updates_available = db_updater.check_updates()
 
     if args.update_fingerprints:
+
         updated = db_updater.update()
+
         console.print(f"[green]Updated {len(updated)} fingerprint pack(s).[/green]")
         return
 
-    if updates_available:
-        updated = db_updater.update()
-        if updated:
-            console.print(f"[green]Updated {len(updated)} fingerprint pack(s):[/green]")
-            for f in updated:
-                console.print(f"  • {f}")
-        update_message = f"Fingerprint DB updated ({len(updated)} pack(s))"
+
+    if updates_available is None:
+        pass  # check skipped (recent)
+
+    elif updates_available:
+        update_message = (
+            f"Fingerprint updates available ({len(updates_available)} packs). "
+            f"Run 'netscan --update-fingerprints'"
+        )
+
     else:
         update_message = "Fingerprint DB up to date"
+        
 
     print_banner(update_message)
 

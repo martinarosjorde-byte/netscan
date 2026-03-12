@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import requests
 from pathlib import Path
+from datetime import datetime, timedelta
 
 
 class FingerprintDBUpdater:
@@ -15,8 +16,39 @@ class FingerprintDBUpdater:
 
         self.local_dir.mkdir(parents=True, exist_ok=True)
 
+        self.last_check_file = self.local_dir / ".last_update_check"
+
     # ---------------------------------------------------------
-    # Get remote fingerprint files + SHA
+    # Should we check for updates?
+    # ---------------------------------------------------------
+
+    def should_check(self):
+
+        if not self.last_check_file.exists():
+            return True
+
+        try:
+
+            last = datetime.fromisoformat(self.last_check_file.read_text().strip())
+
+            if datetime.utcnow() - last > timedelta(hours=24):
+                return True
+
+        except Exception:
+            return True
+
+        return False
+
+    # ---------------------------------------------------------
+    # Save last check timestamp
+    # ---------------------------------------------------------
+
+    def mark_checked(self):
+
+        self.last_check_file.write_text(datetime.utcnow().isoformat())
+
+    # ---------------------------------------------------------
+    # Get remote fingerprint files
     # ---------------------------------------------------------
 
     def get_remote_files(self):
@@ -41,7 +73,7 @@ class FingerprintDBUpdater:
         return {}
 
     # ---------------------------------------------------------
-    # Get stored local SHA
+    # Local SHA handling
     # ---------------------------------------------------------
 
     def get_local_sha(self, filename):
@@ -53,20 +85,19 @@ class FingerprintDBUpdater:
 
         return None
 
-    # ---------------------------------------------------------
-    # Save SHA locally
-    # ---------------------------------------------------------
-
     def save_local_sha(self, filename, sha):
 
         sha_file = self.local_dir / f"{filename}.sha"
         sha_file.write_text(sha)
 
     # ---------------------------------------------------------
-    # Determine which packs need update
+    # Check if updates exist
     # ---------------------------------------------------------
 
     def check_updates(self):
+
+        if not self.should_check():
+            return None  # skip check
 
         updates = []
 
@@ -84,10 +115,12 @@ class FingerprintDBUpdater:
             if local_sha != remote_sha:
                 updates.append(filename)
 
+        self.mark_checked()
+
         return updates
 
     # ---------------------------------------------------------
-    # Download fingerprint pack
+    # Download pack
     # ---------------------------------------------------------
 
     def download_pack(self, filename, sha):
@@ -114,7 +147,7 @@ class FingerprintDBUpdater:
         return False
 
     # ---------------------------------------------------------
-    # Update fingerprint database
+    # Update database
     # ---------------------------------------------------------
 
     def update(self):
