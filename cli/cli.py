@@ -331,6 +331,10 @@ Supported formats inside the file:
 
     if updates_available:
         updated = db_updater.update()
+        if updated:
+            console.print(f"[green]Updated {len(updated)} fingerprint pack(s):[/green]")
+            for f in updated:
+                console.print(f"  • {f}")
         update_message = f"Fingerprint DB updated ({len(updated)} pack(s))"
     else:
         update_message = "Fingerprint DB up to date"
