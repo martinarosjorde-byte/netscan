@@ -78,6 +78,67 @@ def print_banner(update_message=None):
 # Helpers
 # -------------------------------------------------
 
+
+def sanitize_targets(inputs: list[str]) -> list[str]:
+    """
+    Accepts:
+        - single IP
+        - subnet
+        - IP range (start-end)
+
+    Returns:
+        normalized CIDR list
+    """
+    targets = []
+
+    for entry in inputs:
+
+        entry = entry.strip()
+
+        # -------------------------
+        # IP Range
+        # -------------------------
+        if "-" in entry:
+            start, end = entry.split("-", 1)
+
+            try:
+                start_ip = ipaddress.ip_address(start)
+                end_ip = ipaddress.ip_address(end)
+
+                if start_ip > end_ip:
+                    console.print(f"[red]Invalid range:[/red] {entry}")
+                    continue
+
+                current = start_ip
+                while current <= end_ip:
+                    targets.append(f"{current}/32")
+                    current += 1
+
+            except Exception:
+                console.print(f"[red]Invalid IP range:[/red] {entry}")
+
+        # -------------------------
+        # Subnet
+        # -------------------------
+        elif "/" in entry:
+            try:
+                net = ipaddress.ip_network(entry, strict=False)
+                targets.append(str(net))
+            except Exception:
+                console.print(f"[red]Invalid subnet:[/red] {entry}")
+
+        # -------------------------
+        # Single IP
+        # -------------------------
+        else:
+            try:
+                ip = ipaddress.ip_address(entry)
+                targets.append(f"{ip}/32")
+            except Exception:
+                console.print(f"[red]Invalid IP address:[/red] {entry}")
+
+    return targets
+
 def safe_input(prompt: str, default: str = "n") -> str:
     try:
         return input(prompt).lower()
@@ -185,16 +246,53 @@ def main() -> None:
         formatter_class=argparse.RawTextHelpFormatter
     )
 
-    parser.add_argument("subnets", nargs="*", help="Subnets to scan")
-    parser.add_argument("--file", help="File containing subnets")
+    parser.add_argument(
+    "targets",
+    nargs="*",
+    help="""
+Targets to scan.
+Supported formats:
+  Single IP
+      netscan 10.1.1.10
+  Multiple IPs
+      netscan 10.1.1.10 10.1.1.20
+  CIDR subnet
+      netscan 10.1.1.0/24
+  IP range
+      netscan 10.1.1.10-10.1.1.50
+  Mixed targets
+      netscan 10.1.1.0/24 10.2.2.10 10.3.3.10-10.3.3.20
+"""
+)
+    parser.add_argument(
+    "--file",
+    help="""
+File containing scan targets (one per line).
+
+Supported formats inside the file:
+
+    10.1.1.10
+    10.1.1.0/24
+    10.1.1.10-10.1.1.50
+"""
+)
     parser.add_argument("--json", help="Export results to JSON")
     parser.add_argument("--csv", help="Export results to CSV")
-    parser.add_argument("--parallel-subnets", type=int, default=3)
-    parser.add_argument("--no-update-check", action="store_true")
+    parser.add_argument("--parallel-subnets", type=int, default=3, help="Max number of subnets to scan in parallel, default: 3")
+    parser.add_argument("--no-update-check", action="store_true",help="Skip application and fingerprint DB update checks") 
     parser.add_argument("--version", action="version", version=f"NetScan {__version__}")
-    parser.add_argument("--debug", action="store_true")
-    parser.add_argument("--learning",action="store_true",help="Enable fingerprint learning mode (extended evidence collection)"
-)
+    parser.add_argument("--debug", action="store_true", help="Enable debug mode with verbose output")
+    parser.add_argument("--learning",action="store_true",help="Enable fingerprint learning mode (extended evidence collection)")
+    parser.epilog="""
+        Examples:
+
+        netscan 10.1.1.0/24
+        netscan 10.1.1.10
+        netscan 10.1.1.10-10.1.1.100
+        netscan 10.1.1.0/24 10.2.2.0/24
+        netscan --file targets.txt
+        netscan 10.1.1.0/24 --json results.json
+        """
     args = parser.parse_args()
 
     update_message = None
@@ -232,34 +330,30 @@ def main() -> None:
     print_banner(update_message)
 
     # -------------------------------------------------
-    # Determine subnets
+    # Determine targets
     # -------------------------------------------------
 
-    subnets: list[str] = []
-    if args.subnets:
-        subnets.extend(args.subnets)
-    if args.file:
-        subnets.extend(load_subnets_from_file(args.file))
+    targets: list[str] = []
 
-    if not subnets:
+    if args.targets:
+        targets.extend(args.targets)
+
+    if args.file:
+        targets.extend(load_subnets_from_file(args.file))
+
+    if not targets:
         local = suggest_local_subnet()
         if local:
-            console.print(f"[dim]No subnet provided. Auto-scanning {local}[/dim]")
-            subnets.append(local)
+            console.print(f"[dim]No target provided. Auto-scanning {local}[/dim]")
+            targets.append(local)
         else:
             console.print("[red]Could not determine local subnet.[/red]")
             return
 
-    validated: list[str] = []
-    for s in subnets:
-        try:
-            ipaddress.ip_network(s, strict=False)
-            validated.append(s)
-        except Exception:
-            console.print(f"[red]Invalid subnet skipped:[/red] {s}")
+    validated = sanitize_targets(targets)
 
     if not validated:
-        console.print("[red]No valid subnets to scan.[/red]")
+        console.print("[red]No valid targets to scan.[/red]")
         return
 
     # -------------------------------------------------
@@ -269,7 +363,7 @@ def main() -> None:
     scanner = NetworkScanner(debug=args.debug, fingerprint_db_path=str(db_path), learning=args.learning)
 
     console.print(
-        f"\n[bold cyan]Scanning {len(validated)} subnet(s) "
+        f"\n[bold cyan]Scanning {len(validated)} target(s) "
         f"in parallel (max {args.parallel_subnets})...[/bold cyan]\n"
     )
 
