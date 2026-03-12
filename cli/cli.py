@@ -284,6 +284,7 @@ Supported formats inside the file:
     parser.add_argument("--parallel-subnets", type=int, default=3, help="Max number of subnets to scan in parallel, default: 3")
     parser.add_argument("--no-update-check", action="store_true",help="Skip application and fingerprint DB update checks") 
     parser.add_argument("--version", action="version", version=f"NetScan {__version__}")
+    parser.add_argument("--fingerprints", action="store_true", help="List available fingerprint packs")
     parser.add_argument("--debug", action="store_true", help="Enable debug mode with verbose output")
     parser.add_argument("--learning",action="store_true",help="Enable fingerprint learning mode (extended evidence collection)")
     parser.add_argument("--update-fingerprints",action="store_true",help="Update fingerprint database and exit"
@@ -317,11 +318,41 @@ Supported formats inside the file:
 
     console.print(f"[dim]Using fingerprint DB at: {db_path}[/dim]")
 
+    db_updater = FingerprintDBUpdater(
+        local_dir=str(db_path),
+        remote_base_url="https://raw.githubusercontent.com/martinarosjorde-byte/netscan/main/fingerprints"
+    )
+
+    fingerprint_files = [
+       f for f in db_path.glob("*.json")
+        if not f.name.startswith("_")
+    ]
+
+    if args.fingerprints:
+
+        fingerprint_files = [
+            f for f in db_path.glob("*.json")
+            if not f.name.startswith("_")
+        ]
+
+        if not fingerprint_files:
+            console.print("[yellow]No fingerprint packs installed.[/yellow]")
+            console.print("Run 'netscan --update-fingerprints' to download them.")
+            return
+
+        console.print("\n[bold]Installed fingerprint packs:[/bold]\n")
+
+        for f in sorted(fingerprint_files):
+            console.print(f"  • {f.stem}")
+
+        console.print()
+        return
+
     # -------------------------------------------------
     # Ensure fingerprint DB exists
     # -------------------------------------------------
 
-    if not any(db_path.glob("*.json")):
+    if not any(db_path.glob("*.json")) and not args.update_fingerprints:
 
         console.print("\n[yellow]No fingerprint database found.[/yellow]")
 
@@ -332,15 +363,12 @@ Supported formats inside the file:
 
         if answer in ("y", "yes", ""):
 
-            db_updater = FingerprintDBUpdater(
-                local_dir=str(db_path),
-                remote_base_url="https://raw.githubusercontent.com/martinarosjorde-byte/netscan/main/fingerprints"
-            )
-
             updated = db_updater.update()
 
             if updated:
-                console.print(f"[green]Downloaded {len(updated)} fingerprint pack(s).[/green]\n")
+                console.print(f"[green]Downloaded {len(updated)} fingerprint pack(s):[/green]")
+                for p in updated:
+                    console.print(f"  • {p}")
             else:
                 console.print("[red]Failed to download fingerprint database.[/red]")
                 return
@@ -350,22 +378,19 @@ Supported formats inside the file:
             console.print("Run 'netscan --update-fingerprints' to install it.\n")
             return
     
-    console.print(f"[dim]Using fingerprint DB at: {db_path}[/dim]")
-
-    db_updater = FingerprintDBUpdater(
-        local_dir=str(db_path),
-        remote_base_url="https://raw.githubusercontent.com/martinarosjorde-byte/netscan/main/fingerprints"
-    )
-
-    updates_available = db_updater.check_updates()
-
+    
     if args.update_fingerprints:
-
         updated = db_updater.update()
 
-        console.print(f"[green]Updated {len(updated)} fingerprint pack(s).[/green]")
+        if updated:
+            console.print(f"[green]Updated {len(updated)} fingerprint pack(s):[/green]")
+            for p in updated:
+                console.print(f"  • {p}")
+        else:
+            console.print("[green]Fingerprint database already up to date.[/green]")
         return
 
+    updates_available = db_updater.check_updates()
 
     if updates_available is None:
         pass  # check skipped (recent)
@@ -381,7 +406,13 @@ Supported formats inside the file:
         
 
     print_banner(update_message)
-
+    fingerprint_files = [
+            f for f in db_path.glob("*.json")
+            if not f.name.startswith("_")
+        ]
+    console.print(f"[dim]Fingerprint DB: {len(fingerprint_files)} packs loaded[/dim]")
+    
+    
     # -------------------------------------------------
     # Determine targets
     # -------------------------------------------------
