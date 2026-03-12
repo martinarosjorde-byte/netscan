@@ -314,6 +314,41 @@ Supported formats inside the file:
     # Fingerprint DB handling
     db_path = get_fingerprint_db_path()
     seed_fingerprint_db_if_missing(db_path)
+
+    console.print(f"[dim]Using fingerprint DB at: {db_path}[/dim]")
+
+    # -------------------------------------------------
+    # Ensure fingerprint DB exists
+    # -------------------------------------------------
+
+    if not any(db_path.glob("*.json")):
+
+        console.print("\n[yellow]No fingerprint database found.[/yellow]")
+
+        answer = safe_input(
+            "Download fingerprint database now? [Y/n]: ",
+            default="y"
+        )
+
+        if answer in ("y", "yes", ""):
+
+            db_updater = FingerprintDBUpdater(
+                local_dir=str(db_path),
+                remote_base_url="https://raw.githubusercontent.com/martinarosjorde-byte/netscan/main/fingerprints"
+            )
+
+            updated = db_updater.update()
+
+            if updated:
+                console.print(f"[green]Downloaded {len(updated)} fingerprint pack(s).[/green]\n")
+            else:
+                console.print("[red]Failed to download fingerprint database.[/red]")
+                return
+
+        else:
+            console.print("\nFingerprint database required to run NetScan.")
+            console.print("Run 'netscan --update-fingerprints' to install it.\n")
+            return
     
     console.print(f"[dim]Using fingerprint DB at: {db_path}[/dim]")
 
