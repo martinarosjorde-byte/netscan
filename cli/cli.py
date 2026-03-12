@@ -25,7 +25,8 @@ from core.scanner import NetworkScanner
 from cli.exporter import export_csv, export_json
 from cli.renderer import render_summary, render_table
 from utils.loadsubnets import load_subnets_from_file
-from utils.updater import check_for_updates, FingerprintDBUpdater
+from core.db_updater import FingerprintDBUpdater
+from utils.updater import check_for_updates
 from version import __author__, __company__, __version__
 
 console = Console()
@@ -167,36 +168,38 @@ def get_fingerprint_db_path() -> Path:
     """
     Frozen EXE:
         Use ProgramData (writable, survives upgrades)
+
     Dev/script mode:
-        Use project fingerprints/fingerprints.json
+        Use project fingerprints folder
     """
+
     if getattr(sys, "frozen", False):
         program_data = Path(os.environ.get("PROGRAMDATA", r"C:\ProgramData"))
-        return program_data / "NetScan" 
+        path = program_data / "NetScan" / "fingerprints"
+        path.mkdir(parents=True, exist_ok=True)
+        return path
 
     project_root = Path(__file__).resolve().parent.parent
-    return project_root / "fingerprints" 
+    return project_root / "fingerprints"
 
 
-def seed_fingerprint_db_if_missing(target_db: Path) -> None:
+def seed_fingerprint_db_if_missing(target_dir: Path) -> None:
     """
-    If ProgramData DB is missing, copy the shipped default DB from install folder.
-    Only applies to frozen EXE.
+    If ProgramData fingerprint directory is empty,
+    copy bundled fingerprints from install folder.
     """
-    if target_db.exists():
-        return
 
     if not getattr(sys, "frozen", False):
         return
 
-    target_db.parent.mkdir(parents=True, exist_ok=True)
+    if any(target_dir.glob("*.json")):
+        return
 
     install_dir = Path(sys.executable).parent
-    bundled_db = install_dir / "fingerprints" / "fingerprints.json"
+    bundled_dir = install_dir / "fingerprints"
 
-    if bundled_db.exists():
-        shutil.copyfile(bundled_db, target_db)
-
+    if bundled_dir.exists():
+        shutil.copytree(bundled_dir, target_dir, dirs_exist_ok=True)
 
 # -------------------------------------------------
 # Parallel Subnet Scanning
@@ -283,6 +286,8 @@ Supported formats inside the file:
     parser.add_argument("--version", action="version", version=f"NetScan {__version__}")
     parser.add_argument("--debug", action="store_true", help="Enable debug mode with verbose output")
     parser.add_argument("--learning",action="store_true",help="Enable fingerprint learning mode (extended evidence collection)")
+    parser.add_argument("--update-fingerprints",action="store_true",help="Update fingerprint database and exit"
+)
     parser.epilog="""
         Examples:
 
@@ -312,20 +317,23 @@ Supported formats inside the file:
     
     console.print(f"[dim]Using fingerprint DB at: {db_path}[/dim]")
 
-    db_updater = FingerprintDBUpdater(str(db_path))
+    db_updater = FingerprintDBUpdater(
+        local_dir=str(db_path),
+        remote_base_url="https://raw.githubusercontent.com/martinarosjorde-byte/netscan/main/fingerprints"
+    )
 
-    if not db_updater.exists():
-        console.print(f"[yellow]Fingerprint DB not found at: {db_path}[/yellow]")
-        choice = safe_input("Download latest fingerprint DB now? (y/n): ")
-        if choice == "y":
-            if db_updater.download():
-                update_message = "Fingerprint DB downloaded."
-            else:
-                update_message = "Fingerprint DB download failed."
+    updates_available = db_updater.check_updates()
+
+    if args.update_fingerprints:
+        updated = db_updater.update()
+        console.print(f"[green]Updated {len(updated)} fingerprint pack(s).[/green]")
+        return
+
+    if updates_available:
+        updated = db_updater.update()
+        update_message = f"Fingerprint DB updated ({len(updated)} pack(s))"
     else:
-        local_version = db_updater.get_local_version()
-        if local_version:
-            update_message = f"Fingerprint DB version {local_version}"
+        update_message = "Fingerprint DB up to date"
 
     print_banner(update_message)
 

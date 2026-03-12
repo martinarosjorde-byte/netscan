@@ -16,6 +16,8 @@ class FingerprintDatabase:
     metadata: Dict[str, Any]
     global_settings: Dict[str, Any]
     schema_version: str
+    pack_count: int = 0
+    fingerprint_count: int = 0
 
 
 # ---------------------------------------------------------
@@ -60,12 +62,19 @@ class FingerprintPackLoader:
     # =========================================================
 
     def _load_directory(self, directory: str) -> FingerprintDatabase:
+
+        pack_count = 0
         fingerprints: List[Dict[str, Any]] = []
         metadata: Dict[str, Any] = {}
         global_settings: Dict[str, Any] = {}
-        seen_ids: Dict[str, str] = {}  # id -> filename
-        
-        for filename in os.listdir(directory):
+        seen_ids: Dict[str, str] = {}
+
+        for filename in sorted(os.listdir(directory)):
+
+            # Ignore hidden/system files
+            if filename.startswith("."):
+                continue
+
             if not filename.endswith(".json"):
                 continue
 
@@ -78,42 +87,57 @@ class FingerprintPackLoader:
                 self._error(f"Failed to load {filename}: {e}")
                 continue
 
+            # ---------------------------------
             # Engine config special case
+            # ---------------------------------
+
             if filename == "_engine_config.json":
-                global_settings.update(raw.get("global_settings", {}))
+                if isinstance(raw, dict):
+                    global_settings.update(raw.get("global_settings", {}))
                 continue
+
+            pack_count += 1
 
             extracted = self._extract_fingerprints(raw, filename)
 
             for fp in extracted:
+
                 fp_id = fp.get("id")
 
+                # Track which pack it came from (useful for debugging)
+                fp["_pack"] = filename
+
                 if fp_id in seen_ids:
+
                     original_file = seen_ids[fp_id]
+
                     self._warn(
                         f"Duplicate fingerprint ID '{fp_id}'\n"
                         f"   First seen in: {original_file}\n"
                         f"   Duplicate in : {filename}\n"
                         f"   → Skipping duplicate"
                     )
+
                     continue
 
-                # Register first occurrence
                 seen_ids[fp_id] = filename
                 fingerprints.append(fp)
-                
+
             if isinstance(raw, dict):
                 metadata.update(raw.get("metadata", {}))
 
-        
         if self.verbose:
-            self._info(f"Loaded {len(fingerprints)} fingerprints from directory")
+            self._info(
+                f"Loaded {len(fingerprints)} fingerprints from {pack_count} pack(s)"
+            )
 
         return FingerprintDatabase(
             fingerprints=fingerprints,
             metadata=metadata,
             global_settings=global_settings,
             schema_version=str(metadata.get("schema_version", "3.0")),
+            pack_count=pack_count,
+            fingerprint_count=len(fingerprints),
         )
 
     # =========================================================
@@ -121,6 +145,7 @@ class FingerprintPackLoader:
     # =========================================================
 
     def _load_file(self, path: str) -> FingerprintDatabase:
+
         try:
             with open(path, "r", encoding="utf-8") as f:
                 raw = json.load(f)
@@ -141,6 +166,8 @@ class FingerprintPackLoader:
             metadata=metadata,
             global_settings=global_settings,
             schema_version=str(metadata.get("schema_version", "3.0")),
+            pack_count=1,
+            fingerprint_count=len(fingerprints),
         )
 
     # =========================================================
@@ -171,6 +198,7 @@ class FingerprintPackLoader:
         return valid
 
     def _flatten(self, obj: Any) -> List[Dict[str, Any]]:
+
         result: List[Dict[str, Any]] = []
 
         if isinstance(obj, list):
@@ -190,6 +218,7 @@ class FingerprintPackLoader:
     # =========================================================
 
     def _validate_schema(self, fp: Dict[str, Any], filename: str) -> bool:
+
         if not isinstance(fp, dict):
             self._error(f"Invalid fingerprint type in {filename}: not a dict")
             return False
