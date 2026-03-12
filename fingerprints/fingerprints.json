@@ -25,8 +25,10 @@
       "http.cookie_contains": "Match inside Set-Cookie headers.",
 
       "ssl.cert_common_name_contains": "Substring match in certificate common name.",
+      "ssl.cert_common_name_equals": "Exact match of certificate common name.",
       "ssl.cert_issuer_contains": "Substring match in certificate issuer.",
       "ssl.cert_san_contains": "Substring match in certificate SAN list.",
+      "ssl.tls_error_contains": "TLS handshake error message contains substring.",
 
       "ssh.banner_contains": "Substring match in SSH banner.",
       "smtp.banner_contains": "Substring match in SMTP banner.",
@@ -41,12 +43,11 @@
       "ports": "Presence of any of the listed ports."
     },
 
-    "negative_signals": "If matched, fingerprint is invalidated or penalized."
+    "negative": "If matched, fingerprint is invalidated or penalized."
   },
 
+  "fingerprints": [
 
-
- "fingerprints": [
     {
       "id": "fp_microsoft_iis",
       "name": "Microsoft IIS",
@@ -71,34 +72,35 @@
       }
     },
 
-{
-  "id": "fp_mailenable",
-  "name": "MailEnable Mail Server",
-  "category": "Mail Server",
-  "os_guess": "Windows",
-  "priority": 90,
-  "signals": {
-    "strong": {
-      "http": {
-        "title_contains": ["mailenable mail services"]
-      },
-      "pop3": {
-        "banner_contains": ["mailenable"]
-      },
-      "imap": {
-        "banner_contains": ["mailenable"]
+    {
+      "id": "fp_mailenable",
+      "name": "MailEnable Mail Server",
+      "category": "Mail Server",
+      "os_guess": "Windows",
+      "priority": 90,
+      "signals": {
+        "strong": {
+          "http": {
+            "title_contains": ["mailenable mail services"]
+          },
+          "pop3": {
+            "banner_contains": ["mailenable"]
+          },
+          "imap": {
+            "banner_contains": ["mailenable"]
+          }
+        },
+        "medium": {
+          "smtp": {
+            "banner_contains": ["mailenable"]
+          }
+        },
+        "weak": {
+          "ports": [110, 143, 587]
+        }
       }
     },
-    "medium": {
-      "smtp": {
-        "banner_contains": ["mailenable"]
-      }
-    },
-    "weak": {
-      "ports": [110, 143, 587]
-    }
-  }
-},
+
     {
       "id": "fp_apache",
       "name": "Apache Web Server",
@@ -111,59 +113,54 @@
           }
         }
       },
-      "negative": {  
+      "negative": {
         "ssl": {
-    "cert_common_name_contains": ["fortigate"]
-    } 
-    }
+          "cert_common_name_contains": ["fortigate"]
+        }
+      }
     },
-{
-  "id": "fp_carlo_gavazzi_uwp3",
-  "name": "Carlo Gavazzi UWP3 Industrial Web Interface",
-  "category": "Industrial / Energy Monitoring",
-  "os_guess": "Embedded Linux",
-  "priority": 120,
-  "signals": {
-    "strong": {
-      "http": {
-        "title_contains": [
-          "uwp3.0 web"
-        ],
-        "body_contains": [
-          "uwp3.0 web"
-        ]
+
+    {
+      "id": "fp_carlo_gavazzi_uwp3",
+      "name": "Carlo Gavazzi UWP3 Industrial Web Interface",
+      "category": "Industrial / Energy Monitoring",
+      "os_guess": "Embedded Linux",
+      "priority": 120,
+      "signals": {
+        "strong": {
+          "http": {
+            "title_contains": ["uwp3.0 web"],
+            "body_contains": ["uwp3.0 web"]
+          },
+          "ssl": {
+            "cert_common_name_equals": ["uwp3"]
+          }
+        }
       },
-      "ssl": {
-        "cert_common_name_equals": [
-          "uwp3"
-        ]
-      }
-    }
-  },
-  "negative_signals": {
-    "http": {
-      "server_contains": [
-        "apache tomcat"
-      ]
-    }
-  }
-},
-{
-  "id": "fp_legacy_tls_device",
-  "name": "Legacy TLS Device",
-  "category": "Embedded / Legacy",
-  "priority": 30,
-  "signals": {
-    "strong": {
-      "ssl": {
-        "tls_error_contains": ["handshake_failure"]
+      "negative": {
+        "http": {
+          "server_contains": ["apache tomcat"]
+        }
       }
     },
-    "weak": {
-      "ports": [443]
-    }
-  }
-},
+
+    {
+      "id": "fp_legacy_tls_device",
+      "name": "Legacy TLS Device",
+      "category": "Embedded / Legacy",
+      "priority": 30,
+      "signals": {
+        "strong": {
+          "ssl": {
+            "tls_error_contains": ["handshake_failure"]
+          }
+        },
+        "weak": {
+          "ports": [443]
+        }
+      }
+    },
+
     {
       "id": "fp_nginx",
       "name": "Nginx Web Server",
@@ -177,7 +174,7 @@
         }
       }
     },
-  
+
     {
       "id": "fp_proxmox",
       "name": "Proxmox VE",
@@ -213,6 +210,7 @@
         }
       }
     },
+
     {
       "id": "fp_synology",
       "name": "Synology NAS",
@@ -240,6 +238,7 @@
         }
       }
     },
+
     {
       "id": "fp_gitlab",
       "name": "GitLab",
@@ -281,8 +280,6 @@
         }
       }
     },
-
-  
 
     {
       "id": "fp_portainer",
