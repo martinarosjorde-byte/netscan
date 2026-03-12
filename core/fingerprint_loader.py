@@ -46,18 +46,16 @@ class FingerprintPackLoader:
     # =========================================================
 
     def load(self, path: str) -> FingerprintDatabase:
+
         if not os.path.exists(path):
             self._warn(f"Fingerprint path not found: {path}")
             return FingerprintDatabase([], {}, {}, "missing")
 
-        if os.path.isfile(path):
-            return self._load_file(path)
-
         if os.path.isdir(path):
             return self._load_directory(path)
 
-        return FingerprintDatabase([], {}, {}, "unknown")
-
+        self._warn(f"Ignoring file DB format: {path}")
+        return FingerprintDatabase([], {}, {}, "invalid")
     # =========================================================
     # Directory Loader
     # =========================================================
@@ -74,6 +72,10 @@ class FingerprintPackLoader:
 
             # Ignore hidden/system files
             if filename.startswith("."):
+                continue
+
+            if filename == "fingerprints.json":
+                self._warn("Ignoring legacy fingerprints.json")
                 continue
 
             if not filename.endswith(".json"):
@@ -141,35 +143,6 @@ class FingerprintPackLoader:
             fingerprint_count=len(fingerprints),
         )
 
-    # =========================================================
-    # Single File Loader
-    # =========================================================
-
-    def _load_file(self, path: str) -> FingerprintDatabase:
-
-        try:
-            with open(path, "r", encoding="utf-8") as f:
-                raw = json.load(f)
-        except Exception as e:
-            self._error(f"Failed to load file {path}: {e}")
-            return FingerprintDatabase([], {}, {}, "invalid")
-
-        fingerprints = self._extract_fingerprints(raw, os.path.basename(path))
-
-        metadata = raw.get("metadata", {}) if isinstance(raw, dict) else {}
-        global_settings = raw.get("global_settings", {}) if isinstance(raw, dict) else {}
-
-        if self.verbose:
-            self._info(f"Loaded {len(fingerprints)} fingerprints from file")
-
-        return FingerprintDatabase(
-            fingerprints=fingerprints,
-            metadata=metadata,
-            global_settings=global_settings,
-            schema_version=str(metadata.get("schema_version", "3.0")),
-            pack_count=1,
-            fingerprint_count=len(fingerprints),
-        )
 
     # =========================================================
     # Fingerprint Extraction
