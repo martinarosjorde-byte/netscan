@@ -7,11 +7,19 @@ DefaultDirName={autopf}\NetScan
 DefaultGroupName=NetScan
 OutputDir=.
 OutputBaseFilename=NetScan-Installer-v{#MyAppVersion}
+
 Compression=lzma
 SolidCompression=yes
+
 PrivilegesRequired=admin
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
+
+; Recommended for automation
+DisableDirPage=yes
+DisableProgramGroupPage=yes
+DisableWelcomePage=yes
+DisableFinishedPage=yes
 
 [Dirs]
 Name: "{commonappdata}\NetScan"
